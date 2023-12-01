@@ -28,6 +28,7 @@ namespace BylenRingAsteroids
         private double _minAsteroidSize;
         private double _maxAsteroidSize;
         private double _entityMovementThreshold;
+        private List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
         private MatrixD _ringInvMatrix;
@@ -126,8 +127,15 @@ namespace BylenRingAsteroids
 
             Log($"Planet Generator display name: {planetgen.DisplayNameText}");
             Log($"Planet Generator folder name: {folderName}");
+            Log($"Planet Generator mod id: {planetgen.Context.ModName} [{planetgen.Context.ModId}]");
 
             var config = RingConfig.GetRingConfig(_planet);
+
+            if (config.EarlyLog == true || config.Enabled == true)
+            {
+                logfilename = $"{typeof(RingAsteroidsComponent).Name}-{Entity.EntityId}-{DateTime.Now:yyyyMMddHHmmss}.log";
+                logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(RingAsteroidsComponent));
+            }
 
             if (config.Enabled != true)
             {
@@ -168,13 +176,23 @@ namespace BylenRingAsteroids
             _maxAsteroidSize = config.MaxAsteroidSize.Value;
             _entityMovementThreshold = config.EntityMovementThreshold.Value;
 
+            if (config.RingZones != null)
+            {
+                foreach (var zone in config.RingZones)
+                {
+                    _ringZones.Add(new RingZone
+                    {
+                        InnerRadius = Math.Floor(zone.InnerRadius / _sectorSize + 0.5),
+                        OuterRadius = Math.Floor(zone.OuterRadius / _sectorSize + 0.5),
+                        MaxAsteroidsPerSector = zone.MaxAsteroidsPerSector
+                    });
+                }
+            }
+
             _ringInnerRadius = Math.Floor(_ringInnerRadius / _sectorSize + 0.5) * _sectorSize;
             _ringOuterRadius = Math.Floor(_ringOuterRadius / _sectorSize + 0.5) * _sectorSize;
             _minRingSectorY = (int)(_ringInnerRadius / _sectorSize);
             _maxRingSectorY = (int)(_ringOuterRadius / _sectorSize);
-
-            logfilename = $"{typeof(RingAsteroidsComponent).Name}-{Entity.EntityId}-{DateTime.Now:yyyyMMddHHmmss}.log";
-            logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(RingAsteroidsComponent));
 
             var rotx = MatrixD.CreateRotationX(-_ringInclination * Math.PI / 180);
             var roty = MatrixD.CreateRotationY(_ringLongitudeAscendingNode * Math.PI / 180);
@@ -283,15 +301,28 @@ namespace BylenRingAsteroids
             }
 
             var random = new Random(seed);
-            var maxAsteroids = random.Next(_maxAsteroidsPerSector / 2, _maxAsteroidsPerSector);
+            var maxAsteroidsPerSector = _maxAsteroidsPerSector;
+            var minAsteroidSize = _minAsteroidSize;
+            var maxAsteroidSize = _maxAsteroidSize;
+
+            var zone = _ringZones.FirstOrDefault(e => e.InnerRadius <= sector.Y && e.OuterRadius > sector.Y);
+
+            if (zone != null)
+            {
+                maxAsteroidsPerSector = zone.MaxAsteroidsPerSector ?? maxAsteroidsPerSector;
+                minAsteroidSize = zone.MinAsteroidSize ?? minAsteroidSize;
+                maxAsteroidSize = zone.MaxAsteroidSize ?? maxAsteroidSize;
+            }
+
+            var maxAsteroids = random.Next(maxAsteroidsPerSector / 2, maxAsteroidsPerSector);
             _ringSectorMaxAsteroids[sector] = maxAsteroids;
 
             int tries = 0;
 
-            var logmin = Math.Log(_minAsteroidSize);
-            var logmax = Math.Log(_maxAsteroidSize);
+            var logmin = Math.Log(minAsteroidSize);
+            var logmax = Math.Log(maxAsteroidSize);
 
-            while (ids.Count < maxAsteroids && tries < _maxAsteroidsPerSector * 2)
+            while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2)
             {
                 var rad = random.NextDouble() + sector.Y - 0.5;
                 var radphi = random.NextDouble() + sector.X - 0.5;
@@ -412,7 +443,16 @@ namespace BylenRingAsteroids
                     if (!_ringSectorMaxAsteroids.TryGetValue(sector, out maxAsteroids))
                     {
                         var random = new Random(seed);
-                        _ringSectorMaxAsteroids[sector] = random.Next(_maxAsteroidsPerSector * 3 / 4, _maxAsteroidsPerSector);
+                        var maxAsteroidsPerSector = _maxAsteroidsPerSector;
+
+                        var zone = _ringZones.FirstOrDefault(e => e.InnerRadius <= sector.Y && e.OuterRadius > sector.Y);
+
+                        if (zone != null)
+                        {
+                            maxAsteroidsPerSector = zone.MaxAsteroidsPerSector ?? maxAsteroidsPerSector;
+                        }
+
+                        _ringSectorMaxAsteroids[sector] = random.Next(maxAsteroidsPerSector * 3 / 4, maxAsteroidsPerSector);
                     }
 
                     HashSet<long> ids;
