@@ -16,19 +16,19 @@ using VRageMath;
 namespace BylenRingAsteroids
 {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Planet), false)]
-    public class BylenRingComponent : MyGameLogicComponent
+    public class RingAsteroidsComponent : MyGameLogicComponent
     {
-        private string _planetName = "Bylen";
-        private double _ringOuterRadius = 1100000.0;
-        private double _ringInnerRadius = 650000.0;
-        private double _ringHeight = 3500.0;
-        private double _sectorSize = 12500.0;
-        private int _maxAsteroidsPerSector = 100;
-        private double _ringLongitudeAscendingNode = -2.85;
-        private double _ringInclination = 22.42;
-        private double _minAsteroidSize = 128;
-        private double _maxAsteroidSize = 2048;
-        private double _entityMovementThreshold = 512;
+        private double _ringOuterRadius;
+        private double _ringInnerRadius;
+        private double _ringHeight;
+        private double _sectorSize;
+        private int _maxAsteroidsPerSector;
+        private double _ringLongitudeAscendingNode;
+        private double _ringInclination;
+        private double _minAsteroidSize;
+        private double _maxAsteroidSize;
+        private double _entityMovementThreshold;
+
         private MatrixD _ringMatrix;
         private MatrixD _ringInvMatrix;
         private BoundingBoxD _ringBoundingBox;
@@ -36,21 +36,17 @@ namespace BylenRingAsteroids
         private int _maxRingSectorY;
         private string logfilename;
         private TextWriter logfile;
-        private Queue<string> loglines = new Queue<string>();
-
         private MyPlanet _planet;
-        private Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
-        private Dictionary<long, IMyVoxelBase> _voxelMaps = new Dictionary<long, IMyVoxelBase>();
-        private Dictionary<long, Vector2I> _voxelMapSectors = new Dictionary<long, Vector2I>();
-        private Dictionary<Vector2I, HashSet<long>> _ringSectorVoxelMaps = new Dictionary<Vector2I, HashSet<long>>();
-        private Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
-        private Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
-        private HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
         private bool _processing;
 
-        static BylenRingComponent()
-        {
-        }
+        private readonly Queue<string> loglines = new Queue<string>();
+        private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
+        private readonly Dictionary<long, IMyVoxelBase> _voxelMaps = new Dictionary<long, IMyVoxelBase>();
+        private readonly Dictionary<long, Vector2I> _voxelMapSectors = new Dictionary<long, Vector2I>();
+        private readonly Dictionary<Vector2I, HashSet<long>> _ringSectorVoxelMaps = new Dictionary<Vector2I, HashSet<long>>();
+        private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
+        private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
+        private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
 
         private void Log(string str)
         {
@@ -98,10 +94,6 @@ namespace BylenRingAsteroids
                 return;
             }
 
-            _ringInnerRadius = Math.Floor(_ringInnerRadius / _sectorSize + 0.5) * _sectorSize;
-            _ringOuterRadius = Math.Floor(_ringOuterRadius / _sectorSize + 0.5) * _sectorSize;
-            _minRingSectorY = (int)(_ringInnerRadius / _sectorSize);
-            _maxRingSectorY = (int)(_ringOuterRadius / _sectorSize);
             NeedsUpdate |= MyEntityUpdateEnum.EACH_10TH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
 
             Log("End Init");
@@ -122,15 +114,67 @@ namespace BylenRingAsteroids
         {
             Log("Begin Initial Update");
 
-            if (_planet == null || !_planet.StorageName.StartsWith(_planetName))
+            if (_planet == null)
             {
                 Log("No Planet");
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
 
-            logfilename = $"{typeof(BylenRingComponent).Name}-{Entity.EntityId}-{DateTime.Now.ToString("yyyyMMddHHmmss")}.log";
-            logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(BylenRingComponent));
+            var planetgen = _planet.Generator;
+            var folderName = planetgen.FolderName;
+
+            Log($"Planet Generator display name: {planetgen.DisplayNameText}");
+            Log($"Planet Generator folder name: {folderName}");
+
+            var config = RingConfig.GetRingConfig(_planet);
+
+            if (config.Enabled != true)
+            {
+                if (config.Enabled == false)
+                {
+                    Log("Enabled: false");
+                }
+                else
+                {
+                    Log("Enabled: not set");
+                }
+
+                Log("Ring asteroids disabled for this planet");
+                NeedsUpdate = MyEntityUpdateEnum.NONE;
+                return;
+            }
+
+            if (!config.IsConfigComplete)
+            {
+                foreach (var propname in config.GetMissingValueNames())
+                {
+                    Log($"Missing property value: {propname}");
+                }
+
+                Log("Ring asteroids disabled for this planet");
+                NeedsUpdate = MyEntityUpdateEnum.NONE;
+                return;
+            }
+
+            _ringInnerRadius = config.RingInnerRadius.Value;
+            _ringOuterRadius = config.RingOuterRadius.Value;
+            _ringHeight = config.RingHeight.Value;
+            _ringInclination = config.RingInclination.Value;
+            _ringLongitudeAscendingNode = config.RingLongitudeAscendingNode.Value;
+            _sectorSize = config.SectorSize.Value;
+            _maxAsteroidsPerSector = config.MaxAsteroidsPerSector.Value;
+            _minAsteroidSize = config.MinAsteroidSize.Value;
+            _maxAsteroidSize = config.MaxAsteroidSize.Value;
+            _entityMovementThreshold = config.EntityMovementThreshold.Value;
+
+            _ringInnerRadius = Math.Floor(_ringInnerRadius / _sectorSize + 0.5) * _sectorSize;
+            _ringOuterRadius = Math.Floor(_ringOuterRadius / _sectorSize + 0.5) * _sectorSize;
+            _minRingSectorY = (int)(_ringInnerRadius / _sectorSize);
+            _maxRingSectorY = (int)(_ringOuterRadius / _sectorSize);
+
+            logfilename = $"{typeof(RingAsteroidsComponent).Name}-{Entity.EntityId}-{DateTime.Now:yyyyMMddHHmmss}.log";
+            logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(RingAsteroidsComponent));
 
             var rotx = MatrixD.CreateRotationX(-_ringInclination * Math.PI / 180);
             var roty = MatrixD.CreateRotationY(_ringLongitudeAscendingNode * Math.PI / 180);
