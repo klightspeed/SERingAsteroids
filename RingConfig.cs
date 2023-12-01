@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using VRage.Utils;
 
-namespace BylenRingAsteroids
+namespace SERingAsteroids
 {
     public class RingConfig
     {
@@ -24,7 +24,7 @@ namespace BylenRingAsteroids
         public double? EntityMovementThreshold { get; set; }
         public List<RingZone> RingZones { get; set; }
         public bool? Enabled { get; set; }
-        public bool? EarlyLog {  get; set; }
+        public bool? EarlyLog { get; set; }
 
         public bool IsConfigComplete
         {
@@ -242,7 +242,7 @@ namespace BylenRingAsteroids
 
             foreach (var config in configs)
             {
-                if (config.ModId == null || (modid != null && config.ModId == modid) || (modid == null && config.Vanilla == true))
+                if (config.ModId == null || modid != null && config.ModId == modid || modid == null && config.Vanilla == true)
                 {
                     ringConfig.PlanetName = ringConfig.PlanetName ?? config.PlanetName;
                     ringConfig.RingInclination = ringConfig.RingInclination ?? config.RingInclination;

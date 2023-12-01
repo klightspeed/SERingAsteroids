@@ -13,7 +13,7 @@ using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
 
-namespace BylenRingAsteroids
+namespace SERingAsteroids
 {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Planet), false)]
     public class RingAsteroidsComponent : MyGameLogicComponent
@@ -334,7 +334,7 @@ namespace BylenRingAsteroids
 
                 var x = rad * _sectorSize * Math.Cos(phi);
                 var z = rad * _sectorSize * Math.Sin(phi);
-                
+
                 var pos = Vector3D.Transform(new Vector3D(x, y, z), _ringMatrix);
 
                 Log($"Sector {sector}: Attempting to spawn {size}m asteroid with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
