@@ -25,6 +25,7 @@ namespace SERingAsteroids
         public List<RingZone> RingZones { get; set; }
         public bool? Enabled { get; set; }
         public bool? EarlyLog { get; set; }
+        public bool? LogDebug { get; set; }
 
         public bool IsConfigComplete
         {
@@ -191,7 +192,7 @@ namespace SERingAsteroids
             }
             catch (Exception ex)
             {
-                MyLog.Default.WriteLine(ex);
+                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading planet config: {ex}");
             }
 
             try
@@ -206,7 +207,7 @@ namespace SERingAsteroids
             }
             catch (Exception ex)
             {
-                MyLog.Default.WriteLine(ex);
+                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading default config: {ex}");
             }
 
             if (modid != null)
@@ -244,20 +245,20 @@ namespace SERingAsteroids
             {
                 if (config.ModId == null || modid != null && config.ModId == modid || modid == null && config.Vanilla == true)
                 {
-                    ringConfig.PlanetName = ringConfig.PlanetName ?? config.PlanetName;
-                    ringConfig.RingInclination = ringConfig.RingInclination ?? config.RingInclination;
-                    ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? config.RingInnerRadius;
-                    ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? config.RingOuterRadius;
-                    ringConfig.MaxAsteroidSize = ringConfig.MaxAsteroidSize ?? config.MaxAsteroidSize;
-                    ringConfig.MinAsteroidSize = ringConfig.MinAsteroidSize ?? config.MinAsteroidSize;
-                    ringConfig.SectorSize = ringConfig.SectorSize ?? config.SectorSize;
-                    ringConfig.EntityMovementThreshold = ringConfig.EntityMovementThreshold ?? config.EntityMovementThreshold;
-                    ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector ?? config.MaxAsteroidsPerSector;
-                    ringConfig.RingHeight = ringConfig.RingHeight ?? config.RingHeight;
+                    ringConfig.PlanetName                 = ringConfig.PlanetName                 ?? config.PlanetName;
+                    ringConfig.RingInclination            = ringConfig.RingInclination            ?? config.RingInclination;
+                    ringConfig.RingInnerRadius            = ringConfig.RingInnerRadius            ?? config.RingInnerRadius;
+                    ringConfig.RingOuterRadius            = ringConfig.RingOuterRadius            ?? config.RingOuterRadius;
+                    ringConfig.MaxAsteroidSize            = ringConfig.MaxAsteroidSize            ?? config.MaxAsteroidSize;
+                    ringConfig.MinAsteroidSize            = ringConfig.MinAsteroidSize            ?? config.MinAsteroidSize;
+                    ringConfig.SectorSize                 = ringConfig.SectorSize                 ?? config.SectorSize;
+                    ringConfig.EntityMovementThreshold    = ringConfig.EntityMovementThreshold    ?? config.EntityMovementThreshold;
+                    ringConfig.MaxAsteroidsPerSector      = ringConfig.MaxAsteroidsPerSector      ?? config.MaxAsteroidsPerSector;
+                    ringConfig.RingHeight                 = ringConfig.RingHeight                 ?? config.RingHeight;
                     ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? config.RingLongitudeAscendingNode;
-                    ringConfig.RingZones = ringConfig.RingZones ?? config.RingZones;
-                    ringConfig.Enabled = ringConfig.Enabled ?? config.Enabled;
-                    ringConfig.EarlyLog = ringConfig.EarlyLog ?? config.EarlyLog;
+                    ringConfig.RingZones                  = ringConfig.RingZones                  ?? config.RingZones;
+                    ringConfig.Enabled                    = ringConfig.Enabled                    ?? config.Enabled;
+                    ringConfig.EarlyLog                   = ringConfig.EarlyLog                   ?? config.EarlyLog;
                 }
             }
 

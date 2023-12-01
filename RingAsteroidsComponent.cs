@@ -28,6 +28,7 @@ namespace SERingAsteroids
         private double _minAsteroidSize;
         private double _maxAsteroidSize;
         private double _entityMovementThreshold;
+        private bool _logDebug;
         private List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
@@ -48,6 +49,14 @@ namespace SERingAsteroids
         private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
         private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
+
+        private void LogDebug(string str)
+        {
+            if (_logDebug)
+            {
+                Log(str);
+            }
+        }
 
         private void Log(string str)
         {
@@ -84,20 +93,15 @@ namespace SERingAsteroids
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
-            Log("Begin Init");
-
             _planet = Entity as MyPlanet;
 
             if (_planet == null)
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
-                Log("Not a planet");
                 return;
             }
 
             NeedsUpdate |= MyEntityUpdateEnum.EACH_10TH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
-
-            Log("End Init");
         }
 
         public override void Close()
@@ -113,21 +117,11 @@ namespace SERingAsteroids
 
         public override void UpdateOnceBeforeFrame()
         {
-            Log("Begin Initial Update");
-
             if (_planet == null)
             {
-                Log("No Planet");
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
-
-            var planetgen = _planet.Generator;
-            var folderName = planetgen.FolderName;
-
-            Log($"Planet Generator display name: {planetgen.DisplayNameText}");
-            Log($"Planet Generator folder name: {folderName}");
-            Log($"Planet Generator mod id: {planetgen.Context.ModName} [{planetgen.Context.ModId}]");
 
             var config = RingConfig.GetRingConfig(_planet);
 
@@ -136,6 +130,8 @@ namespace SERingAsteroids
                 logfilename = $"{typeof(RingAsteroidsComponent).Name}-{Entity.EntityId}-{DateTime.Now:yyyyMMddHHmmss}.log";
                 logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(RingAsteroidsComponent));
             }
+
+            Log($"Planet {_planet.StorageName}");
 
             if (config.Enabled != true)
             {
@@ -175,6 +171,7 @@ namespace SERingAsteroids
             _minAsteroidSize = config.MinAsteroidSize.Value;
             _maxAsteroidSize = config.MaxAsteroidSize.Value;
             _entityMovementThreshold = config.EntityMovementThreshold.Value;
+            _logDebug = config.LogDebug ?? false;
 
             if (config.RingZones != null)
             {
@@ -203,13 +200,10 @@ namespace SERingAsteroids
             _ringInvMatrix = MatrixD.Invert(_ringMatrix);
             _ringBoundingBox = new BoundingBoxD(planetPos - ringbbmax, planetPos + ringbbmax);
 
-            Log($"Planet {_planet.StorageName}");
-            Log($"Planet Position: {planetPos}");
-            Log($"Matrix: {_ringMatrix}");
-            Log($"Inv Matrix: {_ringInvMatrix}");
-            Log($"Bounding Box: {_ringBoundingBox}");
-
-            Log("End Initil Update");
+            LogDebug($"Planet Position: {planetPos}");
+            LogDebug($"Matrix: {_ringMatrix}");
+            LogDebug($"Inv Matrix: {_ringInvMatrix}");
+            LogDebug($"Bounding Box: {_ringBoundingBox}");
         }
 
         private Vector2I GetRingSectorForPosition(Vector3D position, string friendlyName)
@@ -238,7 +232,8 @@ namespace SERingAsteroids
                     ringSector = new Vector2I((int)longitude, sectorRadius);
                 }
 
-                Log($"{friendlyName} " +
+                LogDebug(
+                    $"{friendlyName} " +
                     $"at X:{position.X:N3} Y:{position.Y:N3} Z:{position.Z:N3} " +
                     $"ring X:{ringLocalPosition.X:N3} Y:{ringLocalPosition.Y:N3} Z:{ringLocalPosition.Z:N3} " +
                     $"lon {ringLon:N3} h {ringLocalPosition.Y:N3} rad {Math.Sqrt(radius_sq):N3} " +
@@ -337,7 +332,7 @@ namespace SERingAsteroids
 
                 var pos = Vector3D.Transform(new Vector3D(x, y, z), _ringMatrix);
 
-                Log($"Sector {sector}: Attempting to spawn {size}m asteroid with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
+                LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
 
                 var sphere = new BoundingSphereD(pos, size * 2);
                 var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
@@ -364,11 +359,11 @@ namespace SERingAsteroids
                     _voxelMaps[voxel.EntityId] = voxel;
                     _voxelMapSectors[voxel.EntityId] = sector;
                     ids.Add(voxel.EntityId);
-                    Log($"Spawned asteroid {voxel.EntityId}");
+                    LogDebug($"Spawned asteroid {voxel.EntityId}");
                 }
                 else
                 {
-                    Log($"Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}]");
+                    LogDebug($"Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}]");
 
                     if (!ids.Contains(overlap.EntityId))
                     {
