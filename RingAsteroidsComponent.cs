@@ -369,9 +369,6 @@ namespace SERingAsteroids
 
             int tries = 0;
 
-            var logmin = Math.Log(minAsteroidSize);
-            var logmax = Math.Log(maxAsteroidSize);
-
             while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2)
             {
                 var relrad = random.NextDouble();
@@ -384,12 +381,23 @@ namespace SERingAsteroids
                     relrad = (a - 1 + Math.Sqrt(a * a + 4 * a * relrad - 2 * a + 1)) / (2 * a);
                 }
 
+                var ringHeight = innerRingHeight * (1 - relrad) + outerRingHeight * relrad;
+
+                var logmin = Math.Log(minAsteroidSize);
+                var logmax = Math.Log(maxAsteroidSize);
+
+                if (ringHeight * 2 < maxAsteroidSize)
+                {
+                    logmax = Math.Log(Math.Max(minAsteroidSize, ringHeight * 2));
+                }
+
+                var size = (float)Math.Exp(Math.Pow(random.NextDouble(), Math.Abs(_sizeExponent)) * (logmax - logmin) + logmin);
+
                 var rad = relrad + sector.Y;
                 var radphi = random.NextDouble() + sector.X - 0.5;
                 var phi = radphi / sector.Y * Math.PI / 3;
-                var y = (random.NextDouble() - 0.5) * _ringHeight * 2;
+                var y = (random.NextDouble() - 0.5) * Math.Max(ringHeight * 2 - size, 0);
 
-                var size = (float)Math.Exp(Math.Pow(random.NextDouble(), Math.Abs(_sizeExponent)) * (logmax - logmin) + logmin);
                 var aseed = random.Next();
                 var gseed = random.Next();
 
