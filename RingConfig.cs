@@ -23,6 +23,8 @@ namespace SERingAsteroids
         public double? MaxAsteroidSize { get; set; }
         public double? EntityMovementThreshold { get; set; }
         public double? SizeExponent { get; set; }
+        public double? ExclusionZoneSize { get; set; }
+        public double? ExclusionZoneSizeMult { get; set; }
         public List<RingZone> RingZones { get; set; }
         public bool? TaperRingEdge { get; set; }
         public bool? Enabled { get; set; }
@@ -66,7 +68,11 @@ namespace SERingAsteroids
         {
             MinAsteroidSize = 128,
             MaxAsteroidSize = 2048,
-            EntityMovementThreshold = 512
+            EntityMovementThreshold = 512,
+            ExclusionZoneSize = 64,
+            ExclusionZoneSizeMult = 1.5,
+            TaperRingEdge = true,
+            SizeExponent = 2.0
         };
 
         public static List<RingConfig> ConfigDefaults { get; set; } = new List<RingConfig>

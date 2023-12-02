@@ -29,6 +29,8 @@ namespace SERingAsteroids
         private double _maxAsteroidSize;
         private double _entityMovementThreshold;
         private double _sizeExponent = 2.0;
+        private double _exclusionZone = 64.0;
+        private double _exclusionZoneMult = 1.5;
         private bool _taperRingEdge;
         private bool _logDebug;
         private List<RingZone> _ringZones = new List<RingZone>();
@@ -174,6 +176,8 @@ namespace SERingAsteroids
             _entityMovementThreshold = config.EntityMovementThreshold.Value;
             _sizeExponent = config.SizeExponent ?? 1.0;
             _taperRingEdge = config.TaperRingEdge ?? true;
+            _exclusionZone = config.ExclusionZoneSize ?? _minAsteroidSize;
+            _exclusionZoneMult = config.ExclusionZoneSizeMult ?? 1.5;
             _logDebug = config.LogDebug ?? false;
 
             if (config.RingZones != null)
@@ -410,7 +414,7 @@ namespace SERingAsteroids
 
                 LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
 
-                var sphere = new BoundingSphereD(pos, size * 2);
+                var sphere = new BoundingSphereD(pos, size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone));
                 var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
 
                 if (overlap != null && overlap.EntityId == _planet.EntityId)
