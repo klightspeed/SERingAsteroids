@@ -142,7 +142,6 @@ namespace SERingAsteroids
             Log($"Enabled: {config.Enabled?.ToString() ?? "not set"}");
             Log($"Debug log: {config.LogDebug?.ToString() ?? "not set"}");
 
-
             if (config.Enabled != true)
             {
                 Log("Ring asteroids disabled for this planet");

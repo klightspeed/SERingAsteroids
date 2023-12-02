@@ -141,6 +141,8 @@ namespace SERingAsteroids
             }
         };
 
+        public static Dictionary<string, RingConfig> StoredConfigs = new Dictionary<string, RingConfig>();
+
         public RingConfig Clone()
         {
             return new RingConfig
@@ -183,12 +185,11 @@ namespace SERingAsteroids
 
             try
             {
-                if (MyAPIGateway.Utilities.FileExistsInWorldStorage(configFileName, typeof(RingAsteroidsComponent)))
+                RingConfig config;
+
+                if (ReadConfig(configFileName, out config))
                 {
-                    using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(configFileName, typeof(RingAsteroidsComponent)))
-                    {
-                        configs.Add(MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd()));
-                    }
+                    configs.Add(config);
                 }
             }
             catch (Exception ex)
@@ -198,12 +199,11 @@ namespace SERingAsteroids
 
             try
             {
-                if (MyAPIGateway.Utilities.FileExistsInWorldStorage(defConfigFileName, typeof(RingAsteroidsComponent)))
+                RingConfig config;
+
+                if (ReadConfig(defConfigFileName, out config))
                 {
-                    using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(defConfigFileName, typeof(RingAsteroidsComponent)))
-                    {
-                        configs.Add(MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd()));
-                    }
+                    configs.Add(config);
                 }
             }
             catch (Exception ex)
@@ -288,6 +288,46 @@ namespace SERingAsteroids
             }
 
             return ringConfig;
+        }
+
+        private static bool ReadConfig(string configFileName, out RingConfig config)
+        {
+            lock (StoredConfigs)
+            {
+                if (StoredConfigs.TryGetValue(configFileName, out config))
+                {
+                    return true;
+                }
+
+                if (MyAPIGateway.Utilities.FileExistsInWorldStorage(configFileName, typeof(RingAsteroidsComponent)))
+                {
+                    using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(configFileName, typeof(RingAsteroidsComponent)))
+                    {
+                        config = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd());
+                        StoredConfigs[configFileName] = config;
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        public static void SaveConfigs()
+        {
+            lock (StoredConfigs)
+            {
+                foreach (var kvp in StoredConfigs)
+                {
+                    if (!MyAPIGateway.Utilities.FileExistsInWorldStorage(kvp.Key, typeof(RingAsteroidsComponent)))
+                    {
+                        using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(kvp.Key, typeof(RingAsteroidsComponent)))
+                        {
+                            writer.Write(MyAPIGateway.Utilities.SerializeToXML(kvp.Value));
+                        }
+                    }
+                }
+            }
         }
     }
 }
