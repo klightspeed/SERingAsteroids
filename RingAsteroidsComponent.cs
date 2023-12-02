@@ -28,7 +28,7 @@ namespace SERingAsteroids
         private double _minAsteroidSize;
         private double _maxAsteroidSize;
         private double _entityMovementThreshold;
-        private double _sizeExponent = 1.0;
+        private double _sizeExponent = 2.0;
         private bool _logDebug;
         private List<RingZone> _ringZones = new List<RingZone>();
 
