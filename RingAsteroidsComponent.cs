@@ -372,7 +372,7 @@ namespace SERingAsteroids
 
                 var name = $"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_{tries}_{aseed}";
 
-                LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
+                LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
 
                 var sphere = new BoundingSphereD(pos, size * 2);
                 var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
@@ -391,7 +391,7 @@ namespace SERingAsteroids
                     {
                         try
                         {
-                            voxel = CreateProceduralAsteroid(aseed, (float)rad, gseed, pos, name);
+                            voxel = CreateProceduralAsteroid(aseed, size, gseed, pos, name);
                         }
                         catch (Exception ex)
                         {
