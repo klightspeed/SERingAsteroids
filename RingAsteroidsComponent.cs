@@ -93,6 +93,12 @@ namespace SERingAsteroids
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
+            if (!MyAPIGateway.Session.IsServer)
+            {
+                NeedsUpdate = MyEntityUpdateEnum.NONE;
+                return;
+            }
+
             _planet = Entity as MyPlanet;
 
             if (_planet == null)
@@ -279,6 +285,17 @@ namespace SERingAsteroids
             });
         }
 
+        private static IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name)
+        {
+#if false
+            return MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
+#else
+            var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed);
+            var storage = MyAPIGateway.Session.VoxelMaps.CreateStorage(asteroid.GetCompressedBytes());
+            return MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
+#endif
+        }
+
         private void AddAsteroidsToSector(Vector2I sector)
         {
             int seed;
@@ -326,11 +343,14 @@ namespace SERingAsteroids
 
                 var size = (float)Math.Exp(random.NextDouble() * random.NextDouble() * (logmax - logmin) + logmin);
                 var aseed = random.Next();
+                var gseed = random.Next();
 
                 var x = rad * _sectorSize * Math.Cos(phi);
                 var z = rad * _sectorSize * Math.Sin(phi);
 
                 var pos = Vector3D.Transform(new Vector3D(x, y, z), _ringMatrix);
+
+                var name = $"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_{tries}_{aseed}";
 
                 LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
 
@@ -348,7 +368,7 @@ namespace SERingAsteroids
 
                     MyAPIGateway.Utilities.InvokeOnGameThread(() =>
                     {
-                        voxel = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(aseed, size, MatrixD.CreateTranslation(pos));
+                        voxel = CreateProceduralAsteroid(aseed, (float)rad, gseed, pos, name);
                     });
 
                     while (voxel == null)
