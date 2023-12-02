@@ -24,6 +24,7 @@ namespace SERingAsteroids
         public double? EntityMovementThreshold { get; set; }
         public double? SizeExponent { get; set; }
         public List<RingZone> RingZones { get; set; }
+        public bool? TaperRingEdge { get; set; }
         public bool? Enabled { get; set; }
         public bool? EarlyLog { get; set; }
         public bool? LogDebug { get; set; }
@@ -259,6 +260,7 @@ namespace SERingAsteroids
                     ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? config.RingLongitudeAscendingNode;
                     ringConfig.SizeExponent               = ringConfig.SizeExponent               ?? config.SizeExponent;
                     ringConfig.RingZones                  = ringConfig.RingZones                  ?? config.RingZones;
+                    ringConfig.TaperRingEdge              = ringConfig.TaperRingEdge              ?? config.TaperRingEdge;
                     ringConfig.Enabled                    = ringConfig.Enabled                    ?? config.Enabled;
                     ringConfig.EarlyLog                   = ringConfig.EarlyLog                   ?? config.EarlyLog;
                     ringConfig.LogDebug                   = ringConfig.LogDebug                   ?? config.LogDebug;

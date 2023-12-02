@@ -29,6 +29,7 @@ namespace SERingAsteroids
         private double _maxAsteroidSize;
         private double _entityMovementThreshold;
         private double _sizeExponent = 2.0;
+        private bool _taperRingEdge;
         private bool _logDebug;
         private List<RingZone> _ringZones = new List<RingZone>();
 
@@ -172,6 +173,7 @@ namespace SERingAsteroids
             _maxAsteroidSize = config.MaxAsteroidSize.Value;
             _entityMovementThreshold = config.EntityMovementThreshold.Value;
             _sizeExponent = config.SizeExponent ?? 1.0;
+            _taperRingEdge = config.TaperRingEdge ?? true;
             _logDebug = config.LogDebug ?? false;
 
             if (config.RingZones != null)
@@ -190,7 +192,7 @@ namespace SERingAsteroids
             _ringInnerRadius = Math.Floor(_ringInnerRadius / _sectorSize + 0.5) * _sectorSize;
             _ringOuterRadius = Math.Floor(_ringOuterRadius / _sectorSize + 0.5) * _sectorSize;
             _minRingSectorY = (int)(_ringInnerRadius / _sectorSize);
-            _maxRingSectorY = (int)(_ringOuterRadius / _sectorSize);
+            _maxRingSectorY = (int)(_ringOuterRadius / _sectorSize) - 1;
 
             var rotx = MatrixD.CreateRotationX(-_ringInclination * Math.PI / 180);
             var roty = MatrixD.CreateRotationY(_ringLongitudeAscendingNode * Math.PI / 180);
@@ -336,6 +338,20 @@ namespace SERingAsteroids
             var maxAsteroidsPerSector = _maxAsteroidsPerSector;
             var minAsteroidSize = _minAsteroidSize;
             var maxAsteroidSize = _maxAsteroidSize;
+            var innerRingHeight = _ringHeight;
+            var outerRingHeight = _ringHeight;
+
+            if (_taperRingEdge)
+            {
+                if (sector.Y == _minRingSectorY)
+                {
+                    innerRingHeight = 0;
+                }
+                else if (sector.Y == _maxRingSectorY)
+                {
+                    outerRingHeight = 0;
+                }
+            }
 
             var zone = _ringZones.FirstOrDefault(e => e.InnerRadius <= sector.Y && e.OuterRadius > sector.Y);
 
@@ -344,6 +360,8 @@ namespace SERingAsteroids
                 maxAsteroidsPerSector = zone.MaxAsteroidsPerSector ?? maxAsteroidsPerSector;
                 minAsteroidSize = zone.MinAsteroidSize ?? minAsteroidSize;
                 maxAsteroidSize = zone.MaxAsteroidSize ?? maxAsteroidSize;
+                innerRingHeight = zone.InnerRingHeight ?? zone.RingHeight ?? innerRingHeight;
+                outerRingHeight = zone.OuterRingHeight ?? zone.RingHeight ?? outerRingHeight;
             }
 
             var maxAsteroids = random.Next(maxAsteroidsPerSector / 2, maxAsteroidsPerSector);
@@ -356,7 +374,17 @@ namespace SERingAsteroids
 
             while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2)
             {
-                var rad = random.NextDouble() + sector.Y - 0.5;
+                var relrad = random.NextDouble();
+
+                if (innerRingHeight > outerRingHeight * 1.05 || outerRingHeight > innerRingHeight * 1.05)
+                {
+                    var a = Math.Min(Math.Max((outerRingHeight - innerRingHeight) / Math.Max(innerRingHeight, outerRingHeight), -1), 1);
+
+                    // inverse of ax^2 + (1 - a)x
+                    relrad = (a - 1 + Math.Sqrt(a * a + 4 * a * relrad - 2 * a + 1)) / (2 * a);
+                }
+
+                var rad = relrad + sector.Y;
                 var radphi = random.NextDouble() + sector.X - 0.5;
                 var phi = radphi / sector.Y * Math.PI / 3;
                 var y = (random.NextDouble() - 0.5) * _ringHeight * 2;
