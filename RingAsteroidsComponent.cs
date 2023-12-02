@@ -28,6 +28,7 @@ namespace SERingAsteroids
         private double _minAsteroidSize;
         private double _maxAsteroidSize;
         private double _entityMovementThreshold;
+        private double _sizeExponent = 1.0;
         private bool _logDebug;
         private List<RingZone> _ringZones = new List<RingZone>();
 
@@ -171,6 +172,7 @@ namespace SERingAsteroids
             _minAsteroidSize = config.MinAsteroidSize.Value;
             _maxAsteroidSize = config.MaxAsteroidSize.Value;
             _entityMovementThreshold = config.EntityMovementThreshold.Value;
+            _sizeExponent = config.SizeExponent ?? 1.0;
             _logDebug = config.LogDebug ?? false;
 
             if (config.RingZones != null)
@@ -360,7 +362,7 @@ namespace SERingAsteroids
                 var phi = radphi / sector.Y * Math.PI / 3;
                 var y = (random.NextDouble() - 0.5) * _ringHeight * 2;
 
-                var size = (float)Math.Exp(random.NextDouble() * random.NextDouble() * (logmax - logmin) + logmin);
+                var size = (float)Math.Exp(Math.Pow(random.NextDouble(), Math.Abs(_sizeExponent)) * (logmax - logmin) + logmin);
                 var aseed = random.Next();
                 var gseed = random.Next();
 

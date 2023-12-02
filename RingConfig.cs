@@ -22,6 +22,7 @@ namespace SERingAsteroids
         public double? MinAsteroidSize { get; set; }
         public double? MaxAsteroidSize { get; set; }
         public double? EntityMovementThreshold { get; set; }
+        public double? SizeExponent { get; set; }
         public List<RingZone> RingZones { get; set; }
         public bool? Enabled { get; set; }
         public bool? EarlyLog { get; set; }
@@ -256,6 +257,7 @@ namespace SERingAsteroids
                     ringConfig.MaxAsteroidsPerSector      = ringConfig.MaxAsteroidsPerSector      ?? config.MaxAsteroidsPerSector;
                     ringConfig.RingHeight                 = ringConfig.RingHeight                 ?? config.RingHeight;
                     ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? config.RingLongitudeAscendingNode;
+                    ringConfig.SizeExponent               = ringConfig.SizeExponent               ?? config.SizeExponent;
                     ringConfig.RingZones                  = ringConfig.RingZones                  ?? config.RingZones;
                     ringConfig.Enabled                    = ringConfig.Enabled                    ?? config.Enabled;
                     ringConfig.EarlyLog                   = ringConfig.EarlyLog                   ?? config.EarlyLog;
@@ -270,6 +272,7 @@ namespace SERingAsteroids
                 exampleConfig.Enabled = exampleConfig.Enabled ?? false;
                 exampleConfig.EarlyLog = exampleConfig.EarlyLog ?? false;
                 exampleConfig.Vanilla = exampleConfig.Vanilla ?? false;
+                exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
