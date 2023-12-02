@@ -46,6 +46,7 @@ namespace SERingAsteroids
         private bool _processing;
 
         private readonly Queue<string> loglines = new Queue<string>();
+        private readonly Queue<AddVoxelDetails> voxelsToAdd = new Queue<AddVoxelDetails>();
         private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
         private readonly Dictionary<long, IMyVoxelBase> _voxelMaps = new Dictionary<long, IMyVoxelBase>();
         private readonly Dictionary<long, Vector2I> _voxelMapSectors = new Dictionary<long, Vector2I>();
@@ -53,6 +54,10 @@ namespace SERingAsteroids
         private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
         private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
+
+        private readonly int _maxAsteroidsPerTick = 5;
+
+        private readonly object _loggerLock = new object();
 
         private void LogDebug(string str)
         {
@@ -64,35 +69,30 @@ namespace SERingAsteroids
 
         private void Log(string str)
         {
-            try
+            lock (_loggerLock)
             {
-                MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+                try
                 {
-                    try
+                    if (logfile == null)
                     {
-                        if (logfile == null)
-                        {
-                            loglines.Enqueue($"[{DateTime.Now:HH:mm:ss:ffff}][{Entity.EntityId}][{_planet?.StorageName}] {str}");
-                        }
-                        else
-                        {
-                            string qline;
-
-                            while (loglines.TryDequeue(out qline))
-                            {
-                                logfile.WriteLine(qline);
-                            }
-
-                            logfile.WriteLine($"[{DateTime.Now:HH:mm:ss:ffff}][{Entity.EntityId}][{_planet?.StorageName}] {str}");
-                            logfile.Flush();
-                        }
+                        loglines.Enqueue($"[{DateTime.Now:HH:mm:ss:ffff}][{Entity.EntityId}][{_planet?.StorageName}] {str}");
                     }
-                    catch
-                    { }
-                });
+                    else
+                    {
+                        string qline;
+
+                        while (loglines.TryDequeue(out qline))
+                        {
+                            logfile.WriteLine(qline);
+                        }
+
+                        logfile.WriteLine($"[{DateTime.Now:HH:mm:ss:ffff}][{Entity.EntityId}][{_planet?.StorageName}] {str}");
+                        logfile.Flush();
+                    }
+                }
+                catch
+                { }
             }
-            catch
-            { }
         }
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
@@ -111,7 +111,7 @@ namespace SERingAsteroids
                 return;
             }
 
-            NeedsUpdate |= MyEntityUpdateEnum.EACH_10TH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+            NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME | MyEntityUpdateEnum.EACH_10TH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
         }
 
         public override void Close()
@@ -250,6 +250,10 @@ namespace SERingAsteroids
             return ringSector;
         }
 
+        public override void UpdateBeforeSimulation()
+        {
+        }
+
         public override void UpdateBeforeSimulation10()
         {
             if (_processing || _planet == null)
@@ -293,8 +297,9 @@ namespace SERingAsteroids
 
         private IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name)
         {
+            IMyVoxelMap voxelmap;
 #if false
-            return MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
+            voxelmap = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
 #else
             var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed);
             var bytes = asteroid.GetBytes();
@@ -318,8 +323,11 @@ namespace SERingAsteroids
                 throw new AsteroidCreationException("Error creating asteroid", ex);
             }
 
-            return MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
+            voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
 #endif
+            LogDebug($"Spawned asteroid {voxelmap.EntityId}");
+
+            return voxelmap;
         }
 
         private void AddAsteroidsToSector(Vector2I sector)
@@ -373,7 +381,9 @@ namespace SERingAsteroids
 
             int tries = 0;
 
-            while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2)
+            var pendingVoxels = new List<AddVoxelDetails>();
+
+            while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2 && !SessionComponent.Unloading)
             {
                 var relrad = random.NextDouble();
 
@@ -414,50 +424,26 @@ namespace SERingAsteroids
 
                 LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
 
-                var sphere = new BoundingSphereD(pos, size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone));
+                var overlapRadius = size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone);
+                var sphere = new BoundingSphereD(pos, overlapRadius);
                 var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
 
                 if (overlap != null && overlap.EntityId == _planet.EntityId)
                 {
-                    overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - pos).LengthSquared() < size * size * 4);
+                    overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - pos).LengthSquared() < Math.Pow(overlapRadius + e.WorldVolume.Radius, 2));
                 }
+
+                AddVoxelDetails overlapPending = null;
 
                 if (overlap == null)
                 {
-                    IMyVoxelMap voxel = null;
-                    Exception exception = null;
-
-                    MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+                    if (pendingVoxels.Count != 0)
                     {
-                        try
-                        {
-                            voxel = CreateProceduralAsteroid(aseed, size, gseed, pos, name);
-                        }
-                        catch (Exception ex)
-                        {
-                            exception = ex;
-                        }
-                    });
-
-                    while (voxel == null)
-                    {
-                        if (exception != null)
-                        {
-                            Log($"Error creating asteroid: {exception}");
-                            Log("Ring asteroids disabled for this planet");
-                            NeedsUpdate = MyEntityUpdateEnum.NONE;
-                            return;
-                        }
-
-                        MyAPIGateway.Parallel.Sleep(1);
+                        overlapPending = pendingVoxels.FirstOrDefault(e => Vector3D.DistanceSquared(e.Position, pos) < Math.Pow(e.Size / 2 + overlapRadius, 2));
                     }
-
-                    _voxelMaps[voxel.EntityId] = voxel;
-                    _voxelMapSectors[voxel.EntityId] = sector;
-                    ids.Add(voxel.EntityId);
-                    LogDebug($"Spawned asteroid {voxel.EntityId}");
                 }
-                else
+
+                if (overlap != null)
                 {
                     LogDebug($"Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}]");
 
@@ -471,8 +457,102 @@ namespace SERingAsteroids
                         }
                     }
                 }
+                else if (overlapPending != null)
+                {
+                    LogDebug($"Overlapped just added asteroid {overlapPending.Name}");
+                }
+                else
+                {
+                    var voxelDetails = new AddVoxelDetails
+                    {
+                        Position = pos,
+                        Name = name,
+                        Seed = aseed,
+                        Size = size,
+                        GeneratorSeed = gseed,
+                        AddAction = CreateProceduralAsteroid
+                    };
+
+                    pendingVoxels.Add(voxelDetails);
+                    SessionComponent.EnqueueVoxelAdd(voxelDetails);
+
+                    while (true)
+                    {
+                        var completed = pendingVoxels.Where(e => e.VoxelMap != null).ToList();
+
+                        var exception = pendingVoxels.FirstOrDefault(e => e.Exception != null)?.Exception;
+
+                        if (exception != null)
+                        {
+                            Log($"Error creating asteroid: {exception}");
+                            Log("Ring asteroids disabled for this planet");
+                            NeedsUpdate = MyEntityUpdateEnum.NONE;
+                            return;
+                        }
+
+                        foreach (var details in completed)
+                        {
+                            var voxel = details.VoxelMap;
+
+                            _voxelMaps[voxel.EntityId] = voxel;
+
+                            _voxelMapSectors[voxel.EntityId] = sector;
+
+                            ids.Add(voxel.EntityId);
+
+                            pendingVoxels.Remove(details);
+                        }
+
+                        if (pendingVoxels.Count < 5)
+                        {
+                            break;
+                        }
+
+                        MyAPIGateway.Parallel.Sleep(1);
+                    }
+                }
 
                 tries++;
+            }
+
+            if (SessionComponent.Unloading)
+            {
+                return;
+            }
+
+            while (true)
+            {
+                var completed = pendingVoxels.Where(e => e.VoxelMap != null).ToList();
+
+                var exception = pendingVoxels.FirstOrDefault(e => e.Exception != null)?.Exception;
+
+                if (exception != null)
+                {
+                    Log($"Error creating asteroid: {exception}");
+                    Log("Ring asteroids disabled for this planet");
+                    NeedsUpdate = MyEntityUpdateEnum.NONE;
+                    return;
+                }
+
+                foreach (var details in completed)
+                {
+                    var voxel = details.VoxelMap;
+
+                    _voxelMaps[voxel.EntityId] = voxel;
+
+                    _voxelMapSectors[voxel.EntityId] = sector;
+
+                    ids.Add(voxel.EntityId);
+
+                    pendingVoxels.Remove(details);
+                }
+
+                if (pendingVoxels.Count == 0)
+                {
+                    break;
+                }
+
+                MyAPIGateway.Parallel.Sleep(1);
             }
         }
 
@@ -562,11 +642,19 @@ namespace SERingAsteroids
             MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
             foreach (var entity in voxelmaps)
             {
+                bool addVoxel = false;
+
                 if (!_voxelMaps.ContainsKey(entity.EntityId))
                 {
+                    addVoxel = true;
                     _voxelMaps[entity.EntityId] = entity;
+                }
+
+                if (addVoxel)
+                {
                     var pos = entity.PositionComp.GetPosition();
                     var sector = GetRingSectorForPosition(pos, $"{entity.EntityId} [{entity.StorageName}]");
+
                     _voxelMapSectors[entity.EntityId] = sector;
 
                     if (sector != default(Vector2I))
@@ -583,16 +671,25 @@ namespace SERingAsteroids
                 }
             }
 
-            foreach (var voxelmap in _voxelMaps.Values.ToList())
+            List<IMyVoxelBase> voxels;
+
+            voxels = _voxelMaps.Values.ToList();
+
+            foreach (var voxelmap in voxels)
             {
                 if (voxelmap.Closed)
                 {
                     Vector2I sector;
+                    bool hasSector = false;
 
                     if (_voxelMapSectors.TryGetValue(voxelmap.EntityId, out sector))
                     {
+                        hasSector = true;
                         _voxelMapSectors.Remove(voxelmap.EntityId);
+                    }
 
+                    if (hasSector)
+                    {
                         HashSet<long> ids;
 
                         if (_ringSectorVoxelMaps.TryGetValue(sector, out ids))
