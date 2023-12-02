@@ -259,6 +259,7 @@ namespace SERingAsteroids
                     ringConfig.RingZones                  = ringConfig.RingZones                  ?? config.RingZones;
                     ringConfig.Enabled                    = ringConfig.Enabled                    ?? config.Enabled;
                     ringConfig.EarlyLog                   = ringConfig.EarlyLog                   ?? config.EarlyLog;
+                    ringConfig.LogDebug                   = ringConfig.LogDebug                   ?? config.LogDebug;
                 }
             }
 

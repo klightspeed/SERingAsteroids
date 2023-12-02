@@ -138,18 +138,12 @@ namespace SERingAsteroids
             }
 
             Log($"Planet {_planet.StorageName}");
+            Log($"Enabled: {config.Enabled?.ToString() ?? "not set"}");
+            Log($"Debug log: {config.LogDebug?.ToString() ?? "not set"}");
+
 
             if (config.Enabled != true)
             {
-                if (config.Enabled == false)
-                {
-                    Log("Enabled: false");
-                }
-                else
-                {
-                    Log("Enabled: not set");
-                }
-
                 Log("Ring asteroids disabled for this planet");
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
@@ -285,13 +279,38 @@ namespace SERingAsteroids
             });
         }
 
-        private static IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name)
+        private class AsteroidCreationException : Exception
+        {
+            public AsteroidCreationException(string message, Exception innerException) : base(message, innerException) { }
+        }
+
+        private IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name)
         {
 #if false
             return MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
 #else
             var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed);
-            var storage = MyAPIGateway.Session.VoxelMaps.CreateStorage(asteroid.GetCompressedBytes());
+            var bytes = asteroid.GetBytes();
+
+            IMyStorage storage;
+
+            try
+            {
+                storage = MyAPIGateway.Session.VoxelMaps.CreateStorage(bytes);
+            }
+            catch (Exception ex)
+            {
+                Log($"Error creating asteroid: {ex}");
+                Log($"Writing bad asteroid data to {name}");
+
+                using (var writer = MyAPIGateway.Utilities.WriteBinaryFileInLocalStorage(name, typeof(RingAsteroidsComponent)))
+                {
+                    writer.Write(bytes);
+                }
+
+                throw new AsteroidCreationException("Error creating asteroid", ex);
+            }
+
             return MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
 #endif
         }
@@ -365,14 +384,30 @@ namespace SERingAsteroids
                 if (overlap == null)
                 {
                     IMyVoxelMap voxel = null;
+                    Exception exception = null;
 
                     MyAPIGateway.Utilities.InvokeOnGameThread(() =>
                     {
-                        voxel = CreateProceduralAsteroid(aseed, (float)rad, gseed, pos, name);
+                        try
+                        {
+                            voxel = CreateProceduralAsteroid(aseed, (float)rad, gseed, pos, name);
+                        }
+                        catch (Exception ex)
+                        {
+                            exception = ex;
+                        }
                     });
 
                     while (voxel == null)
                     {
+                        if (exception != null)
+                        {
+                            Log($"Error creating asteroid: {exception}");
+                            Log("Ring asteroids disabled for this planet");
+                            NeedsUpdate = MyEntityUpdateEnum.NONE;
+                            return;
+                        }
+
                         MyAPIGateway.Parallel.Sleep(1);
                     }
 

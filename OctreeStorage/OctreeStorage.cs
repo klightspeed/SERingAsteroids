@@ -94,9 +94,14 @@ namespace SERingAsteroids.OctreeStorage
 
         public byte[] GetCompressedBytes()
         {
+            return MyCompression.Compress(GetBytes());
+        }
+
+        public byte[] GetBytes()
+        {
             var buffer = new ByteArrayBuffer(GetWrittenSize());
             WriteTo(buffer);
-            return MyCompression.Compress(buffer.ToArray());
+            return buffer.ToArray();
         }
 
         private static bool TryRead(ByteArrayBuffer buffer, OctreeStorageChunkType type, uint origsize, uint version, uint fileVersion, ushort accessGridLod, out OctreeStorageChunk chunk)
