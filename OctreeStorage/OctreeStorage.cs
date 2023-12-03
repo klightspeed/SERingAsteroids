@@ -187,7 +187,6 @@ namespace SERingAsteroids.OctreeStorage
             if (!buffer.TryRead7BitEncodedInt(out size))
                 return false;
 
-            var bufsize = size;
             var origsize = size;
 
             var type = (OctreeStorageChunkType)typeval;

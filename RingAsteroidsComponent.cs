@@ -33,7 +33,7 @@ namespace SERingAsteroids
         private double _exclusionZoneMult = 1.5;
         private bool _taperRingEdge;
         private bool _logDebug;
-        private List<RingZone> _ringZones = new List<RingZone>();
+        private readonly List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
         private MatrixD _ringInvMatrix;
@@ -44,9 +44,9 @@ namespace SERingAsteroids
         private TextWriter logfile;
         private MyPlanet _planet;
         private bool _processing;
+        private bool _reloadRequired;
 
         private readonly Queue<string> loglines = new Queue<string>();
-        private readonly Queue<AddVoxelDetails> voxelsToAdd = new Queue<AddVoxelDetails>();
         private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
         private readonly Dictionary<long, IMyVoxelBase> _voxelMaps = new Dictionary<long, IMyVoxelBase>();
         private readonly Dictionary<long, Vector2I> _voxelMapSectors = new Dictionary<long, Vector2I>();
@@ -54,8 +54,6 @@ namespace SERingAsteroids
         private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
         private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
-
-        private readonly int _maxAsteroidsPerTick = 5;
 
         private readonly object _loggerLock = new object();
 
@@ -111,7 +109,7 @@ namespace SERingAsteroids
                 return;
             }
 
-            NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME | MyEntityUpdateEnum.EACH_10TH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+            NeedsUpdate |= MyEntityUpdateEnum.EACH_10TH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
         }
 
         public override void Close()
@@ -133,12 +131,25 @@ namespace SERingAsteroids
                 return;
             }
 
-            var config = RingConfig.GetRingConfig(_planet);
+            if (_processing || _planet == null)
+                return;
+
+            ReloadConfig();
+        }
+
+        private void ReloadConfig()
+        {
+            _reloadRequired = false;
+
+            var config = RingConfig.GetRingConfig(_planet, this);
 
             if (config.EarlyLog == true || config.Enabled == true)
             {
-                logfilename = $"{typeof(RingAsteroidsComponent).Name}-{Entity.EntityId}-{DateTime.Now:yyyyMMddHHmmss}.log";
-                logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(RingAsteroidsComponent));
+                if (logfile == null)
+                {
+                    logfilename = $"{typeof(RingAsteroidsComponent).Name}-{Entity.EntityId}-{DateTime.Now:yyyyMMddHHmmss}.log";
+                    logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(logfilename, typeof(RingAsteroidsComponent));
+                }
             }
 
             Log($"Planet {_planet.StorageName}");
@@ -182,6 +193,8 @@ namespace SERingAsteroids
 
             if (config.RingZones != null)
             {
+                _ringZones.Clear();
+
                 foreach (var zone in config.RingZones)
                 {
                     _ringZones.Add(new RingZone
@@ -211,6 +224,13 @@ namespace SERingAsteroids
             LogDebug($"Matrix: {_ringMatrix}");
             LogDebug($"Inv Matrix: {_ringInvMatrix}");
             LogDebug($"Bounding Box: {_ringBoundingBox}");
+
+            NeedsUpdate |= MyEntityUpdateEnum.EACH_10TH_FRAME;
+        }
+
+        public void RequestReload()
+        {
+            _reloadRequired = true;
         }
 
         private Vector2I GetRingSectorForPosition(Vector3D position, string friendlyName)
@@ -250,14 +270,16 @@ namespace SERingAsteroids
             return ringSector;
         }
 
-        public override void UpdateBeforeSimulation()
-        {
-        }
-
         public override void UpdateBeforeSimulation10()
         {
             if (_processing || _planet == null)
                 return;
+
+            if (_reloadRequired)
+            {
+                Log("Reloading config");
+                ReloadConfig();
+            }
 
             MyAPIGateway.Parallel.Start(() =>
             {
@@ -365,15 +387,45 @@ namespace SERingAsteroids
                 }
             }
 
-            var zone = _ringZones.FirstOrDefault(e => e.InnerRadius <= sector.Y && e.OuterRadius > sector.Y);
+            var zone = _ringZones.FirstOrDefault(e => sector.Y < e.OuterRadius && sector.Y + 1 > e.InnerRadius && e.OuterRadius > e.InnerRadius);
 
             if (zone != null)
             {
                 maxAsteroidsPerSector = zone.MaxAsteroidsPerSector ?? maxAsteroidsPerSector;
                 minAsteroidSize = zone.MinAsteroidSize ?? minAsteroidSize;
                 maxAsteroidSize = zone.MaxAsteroidSize ?? maxAsteroidSize;
-                innerRingHeight = zone.InnerRingHeight ?? zone.RingHeight ?? innerRingHeight;
-                outerRingHeight = zone.OuterRingHeight ?? zone.RingHeight ?? outerRingHeight;
+
+                if (zone.InnerRingHeight != null || zone.OuterRingHeight != null)
+                {
+                    var zoneInnerRingHeight = zone.InnerRingHeight ?? zone.RingHeight ?? innerRingHeight;
+                    var zoneOuterRingHeight = zone.OuterRingHeight ?? zone.RingHeight ?? outerRingHeight;
+                    var radiusRange = Math.Max(zone.OuterRadius - zone.InnerRadius, 1);
+                    var zoneInnerFraction = Math.Min(Math.Max(0, (sector.Y - zone.InnerRadius) / radiusRange), 1);
+                    var zoneOuterFraction = Math.Min(Math.Max(0, (sector.Y + 1 - zone.InnerRadius) / radiusRange), 1);
+                    innerRingHeight = zoneOuterRingHeight * zoneInnerFraction + zoneInnerRingHeight * (1 - zoneInnerFraction);
+                    outerRingHeight = zoneOuterRingHeight * zoneOuterFraction + zoneInnerRingHeight * (1 - zoneOuterFraction);
+                }
+                else if (zone.TaperEdges == true)
+                {
+                    if (sector.Y <= zone.InnerRadius && sector.Y + 1 < zone.OuterRadius)
+                    {
+                        outerRingHeight = zone.RingHeight ?? outerRingHeight;
+                    }
+                    else if (sector.Y > zone.InnerRadius && sector.Y + 1 >= zone.OuterRadius)
+                    {
+                        innerRingHeight = zone.RingHeight ?? innerRingHeight;
+                    }
+                    else
+                    {
+                        innerRingHeight = zone.RingHeight ?? innerRingHeight;
+                        outerRingHeight = zone.RingHeight ?? outerRingHeight;
+                    }
+                }
+                else
+                {
+                    innerRingHeight = zone.RingHeight ?? innerRingHeight;
+                    outerRingHeight = zone.RingHeight ?? outerRingHeight;
+                }
             }
 
             var maxAsteroids = random.Next(maxAsteroidsPerSector / 2, maxAsteroidsPerSector);
@@ -383,7 +435,7 @@ namespace SERingAsteroids
 
             var pendingVoxels = new List<AddVoxelDetails>();
 
-            while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2 && !SessionComponent.Unloading)
+            while (ids.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2 && !SessionComponent.Unloading && !_reloadRequired)
             {
                 var relrad = random.NextDouble();
 

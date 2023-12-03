@@ -150,6 +150,12 @@ namespace SERingAsteroids
 
         public static Dictionary<string, RingConfig> StoredConfigs = new Dictionary<string, RingConfig>();
 
+        public static List<RingConfig> SBCStoredConfigs = null;
+
+        public static RingConfig SBCStoredDefaultConfig = null;
+
+        public static Dictionary<string, RingAsteroidsComponent> PlanetRingComponents = new Dictionary<string, RingAsteroidsComponent>();
+
         public RingConfig Clone()
         {
             return new RingConfig
@@ -180,8 +186,64 @@ namespace SERingAsteroids
             };
         }
 
-        public static RingConfig GetRingConfig(MyPlanet planet)
+        public static void LoadSBCStoredConfigs()
         {
+            List<RingConfig> configList;
+
+            if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_RingConfigs", out configList))
+            {
+                SBCStoredConfigs = configList;
+            }
+            else
+            {
+                SBCStoredConfigs = new List<RingConfig>();
+            }
+
+            RingConfig config;
+
+            if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_DefaultRingConfig", out config))
+            {
+                SBCStoredDefaultConfig = config;
+            }
+        }
+
+        public static void SaveSBCStoredConfigs()
+        {
+            if (SBCStoredConfigs != null && SBCStoredConfigs.Count > 0)
+            {
+                MyAPIGateway.Utilities.SetVariable("SERingAsteroids_RingConfigs", SBCStoredConfigs);
+            }
+
+            if (SBCStoredDefaultConfig != null)
+            {
+                MyAPIGateway.Utilities.SetVariable("SERingAsteroids_DefaultRingConfig", SBCStoredDefaultConfig);
+            }
+        }
+
+        private static void AddOrUpdateSBCStoredConfig(RingConfig config)
+        {
+            var sbcConfigIndex = SBCStoredConfigs.FindIndex(e => e.PlanetName == config.PlanetName && e.ModId == config.ModId && e.Vanilla == config.Vanilla);
+            var sbcConfig = sbcConfigIndex >= 0 ? SBCStoredConfigs[sbcConfigIndex] : null;
+
+            if (!config.Equals(sbcConfig))
+            {
+                if (sbcConfigIndex >= 0)
+                {
+                    SBCStoredConfigs[sbcConfigIndex] = config;
+                }
+                else
+                {
+                    SBCStoredConfigs.Add(config);
+                }
+
+                SaveSBCStoredConfigs();
+            }
+        }
+
+        public static RingConfig GetRingConfig(MyPlanet planet, RingAsteroidsComponent component)
+        {
+            PlanetRingComponents[planet.StorageName] = component;
+
             var ringConfig = new RingConfig();
 
             var configFileName = planet.StorageName + ".xml";
@@ -190,6 +252,11 @@ namespace SERingAsteroids
 
             var configs = new List<RingConfig>();
 
+            if (SBCStoredConfigs == null)
+            {
+                LoadSBCStoredConfigs();
+            }
+
             try
             {
                 RingConfig config;
@@ -197,11 +264,45 @@ namespace SERingAsteroids
                 if (ReadConfig(configFileName, out config))
                 {
                     configs.Add(config);
+                    config.PlanetName = planet.StorageName;
+
+                    if (config.ModId == null && config.Vanilla != true)
+                    {
+                        config.ModId = modid;
+                    }
+
+                    if (config.Vanilla == null && config.ModId == null)
+                    {
+                        config.Vanilla = modid == null;
+                    }
+
+                    AddOrUpdateSBCStoredConfig(config);
                 }
             }
             catch (Exception ex)
             {
                 MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading planet config: {ex}");
+            }
+
+            if (modid != null)
+            {
+                foreach (var config in SBCStoredConfigs.Where(e => e.ModId == modid).OrderByDescending(e => e.PlanetName))
+                {
+                    if (planet.StorageName.StartsWith(config.PlanetName))
+                    {
+                        configs.Add(config);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var config in SBCStoredConfigs.Where(e => e.Vanilla == true).OrderByDescending(e => e.PlanetName))
+                {
+                    if (planet.StorageName.StartsWith(config.PlanetName))
+                    {
+                        configs.Add(config);
+                    }
+                }
             }
 
             try
@@ -211,11 +312,18 @@ namespace SERingAsteroids
                 if (ReadConfig(defConfigFileName, out config))
                 {
                     configs.Add(config);
+                    SBCStoredDefaultConfig = config;
+                    SaveSBCStoredConfigs();
                 }
             }
             catch (Exception ex)
             {
                 MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading default config: {ex}");
+            }
+
+            if (SBCStoredDefaultConfig != null)
+            {
+                configs.Add(SBCStoredDefaultConfig);
             }
 
             if (modid != null)
@@ -336,6 +444,204 @@ namespace SERingAsteroids
                     }
                 }
             }
+        }
+
+        private static Dictionary<string, string> PropNameShortestPrefixes = new Dictionary<string, string>
+        {
+            ["ena"] = "enabled",
+            ["ea"] = "earlylog",
+            ["el"] = "earlylog",
+            ["log"] = "logdebug",
+            ["ld"] = "logdebug",
+            ["taper"] = "taperringedge",
+            ["ringo"] = "ringouterradius",
+            ["out"] = "ringouterradius",
+            ["or"] = "ringouterradius",
+            ["ringi"] = "ringinnerradius",
+            ["inn"] = "ringinnerradius",
+            ["ir"] = "ringinnerradius",
+            ["ringh"] = "ringheight",
+            ["ht"] = "ringheight",
+            ["secsz"] = "sectorsize",
+            ["maxpersec"] = "maxasteroidspersector",
+            ["lan"] = "ringlongitudeascendingnode",
+            ["inc"] = "ringinclination",
+            ["minsz"] = "minasteroidsize",
+            ["maxsz"] = "maxasteroidsize",
+            ["entmov"] = "entitymovementthreshold",
+            ["thres"] = "entitymovementthreshold",
+            ["szexp"] = "sizeexponent",
+            ["xzsiz"] = "exclusionzonesize",
+            ["xzmul"] = "exclusionzonesizemult"
+        };
+
+        public static void UpdateConfig(MyPlanet planet, string propname, string strvalue)
+        {
+            propname = propname.ToLowerInvariant();
+            propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
+
+            if (planet == null)
+                return;
+
+            if (SBCStoredConfigs == null)
+            {
+                LoadSBCStoredConfigs();
+            }
+
+            var modid = planet.Generator.Context.ModId;
+
+            var config = SBCStoredConfigs.FirstOrDefault(e => e.PlanetName == planet.StorageName && e.ModId == modid && e.Vanilla == (modid == null));
+
+            if (config == null)
+            {
+                config = new RingConfig
+                {
+                    PlanetName = planet.StorageName,
+                    ModId = modid,
+                    Vanilla = modid == null
+                };
+
+                SBCStoredConfigs.Add(config);
+            }
+
+            bool? boolval = null;
+            double? doubleval = null;
+            double dblval;
+
+            if (double.TryParse(strvalue, out dblval))
+            {
+                doubleval = dblval;
+            }
+
+            if (strvalue?.ToLowerInvariant() == "yes" || strvalue?.ToLowerInvariant() == "true" || doubleval > 0)
+            {
+                boolval = true;
+            }
+            else if (strvalue?.ToLowerInvariant() == "no" || strvalue?.ToLowerInvariant() == "false" || doubleval <= 0)
+            {
+                boolval = false;
+            }
+
+            if (boolval != null || string.IsNullOrEmpty(strvalue))
+            {
+                switch (propname.ToLowerInvariant())
+                {
+                    case "taperringedge": config.TaperRingEdge = boolval; break;
+                    case "enabled": config.Enabled = boolval; break;
+                    case "earlylog": config.EarlyLog = boolval; break;
+                    case "logdebug": config.LogDebug = boolval; break;
+                }
+            }
+
+            if (doubleval != null || string.IsNullOrEmpty(strvalue))
+            {
+                switch (propname.ToLowerInvariant())
+                {
+                    case "ringouterradius": config.RingOuterRadius = doubleval; break;
+                    case "ringinnerradius": config.RingInnerRadius = doubleval; break;
+                    case "ringheight": config.RingHeight = doubleval; break;
+                    case "sectorsize": config.SectorSize = doubleval; break;
+                    case "maxasteroidspersector": config.MaxAsteroidsPerSector = (int?)doubleval; break;
+                    case "ringlongitudeascendingnode": config.RingLongitudeAscendingNode = doubleval; break;
+                    case "ringinclination": config.RingInclination = doubleval; break;
+                    case "minasteroidsize": config.MinAsteroidSize = doubleval; break;
+                    case "maxasteroidsize": config.MaxAsteroidSize = doubleval; break;
+                    case "entitymovementthreshold": config.EntityMovementThreshold = doubleval; break;
+                    case "sizeexponent": config.SizeExponent = doubleval; break;
+                    case "exclusionzonesize": config.ExclusionZoneSize = doubleval; break;
+                    case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
+                }
+            }
+        }
+
+        public static void RequestReload(MyPlanet planet, bool? enabled)
+        {
+            RingAsteroidsComponent component;
+
+            if (planet != null && PlanetRingComponents.TryGetValue(planet.StorageName, out component))
+            {
+                if (enabled != null)
+                {
+                    UpdateConfig(planet, "enabled", enabled.ToString());
+                }
+
+                SaveConfigs();
+
+                component.RequestReload();
+            }
+        }
+
+        private static bool SequenceEquals(List<RingZone> x, List<RingZone> y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (ReferenceEquals(x, null)) return false;
+            if (ReferenceEquals(y, null)) return false;
+            if (x.Count != y.Count) return false;
+            return x.SequenceEqual(y);
+        }
+
+        public override bool Equals(object obj)
+        {
+            RingConfig config = obj as RingConfig;
+            return !ReferenceEquals(config, null) &&
+                   PlanetName == config.PlanetName &&
+                   ModId == config.ModId &&
+                   Vanilla == config.Vanilla &&
+                   RingOuterRadius == config.RingOuterRadius &&
+                   RingInnerRadius == config.RingInnerRadius &&
+                   RingHeight == config.RingHeight &&
+                   SectorSize == config.SectorSize &&
+                   MaxAsteroidsPerSector == config.MaxAsteroidsPerSector &&
+                   RingLongitudeAscendingNode == config.RingLongitudeAscendingNode &&
+                   RingInclination == config.RingInclination &&
+                   MinAsteroidSize == config.MinAsteroidSize &&
+                   MaxAsteroidSize == config.MaxAsteroidSize &&
+                   EntityMovementThreshold == config.EntityMovementThreshold &&
+                   SizeExponent == config.SizeExponent &&
+                   ExclusionZoneSize == config.ExclusionZoneSize &&
+                   ExclusionZoneSizeMult == config.ExclusionZoneSizeMult &&
+                   SequenceEquals(RingZones, config.RingZones) &&
+                   TaperRingEdge == config.TaperRingEdge &&
+                   Enabled == config.Enabled &&
+                   EarlyLog == config.EarlyLog &&
+                   LogDebug == config.LogDebug;
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = -843855945;
+            hashCode = hashCode * -1521134295 + PlanetName?.GetHashCode() ?? 0;
+            hashCode = hashCode * -1521134295 + ModId?.GetHashCode() ?? 0;
+            hashCode = hashCode * -1521134295 + Vanilla.GetHashCode();
+            hashCode = hashCode * -1521134295 + RingOuterRadius.GetHashCode();
+            hashCode = hashCode * -1521134295 + RingInnerRadius.GetHashCode();
+            hashCode = hashCode * -1521134295 + RingHeight.GetHashCode();
+            hashCode = hashCode * -1521134295 + SectorSize.GetHashCode();
+            hashCode = hashCode * -1521134295 + MaxAsteroidsPerSector.GetHashCode();
+            hashCode = hashCode * -1521134295 + RingLongitudeAscendingNode.GetHashCode();
+            hashCode = hashCode * -1521134295 + RingInclination.GetHashCode();
+            hashCode = hashCode * -1521134295 + MinAsteroidSize.GetHashCode();
+            hashCode = hashCode * -1521134295 + MaxAsteroidSize.GetHashCode();
+            hashCode = hashCode * -1521134295 + EntityMovementThreshold.GetHashCode();
+            hashCode = hashCode * -1521134295 + SizeExponent.GetHashCode();
+            hashCode = hashCode * -1521134295 + ExclusionZoneSize.GetHashCode();
+            hashCode = hashCode * -1521134295 + ExclusionZoneSizeMult.GetHashCode();
+
+            if (RingZones != null)
+            {
+                hashCode = hashCode * -1521134295 + RingZones.Count.GetHashCode();
+
+                foreach (var zone in RingZones)
+                {
+                    hashCode = hashCode * -1521134295 + zone.GetHashCode();
+                }
+            }
+
+            hashCode = hashCode * -1521134295 + TaperRingEdge.GetHashCode();
+            hashCode = hashCode * -1521134295 + Enabled.GetHashCode();
+            hashCode = hashCode * -1521134295 + EarlyLog.GetHashCode();
+            hashCode = hashCode * -1521134295 + LogDebug.GetHashCode();
+            return hashCode;
         }
     }
 }
