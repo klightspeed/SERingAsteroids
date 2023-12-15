@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text;
-using VRage.Library.Extensions;
 
 namespace SERingAsteroids.OctreeStorage
 {

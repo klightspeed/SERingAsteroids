@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Sandbox.Definitions;
 using SERingAsteroids.OctreeStorage.Chunks;
-using VRage;
 
 namespace SERingAsteroids.OctreeStorage
 {
@@ -90,11 +88,6 @@ namespace SERingAsteroids.OctreeStorage
 
             var eof = new EOF();
             eof.WriteTo(buffer);
-        }
-
-        public byte[] GetCompressedBytes()
-        {
-            return MyCompression.Compress(GetBytes());
         }
 
         public byte[] GetBytes()
@@ -281,7 +274,7 @@ namespace SERingAsteroids.OctreeStorage
 
         }
 
-        public static OctreeStorage ReadFrom(byte[] data)
+        public static OctreeStorage ReadFrom(byte[] data, Func<byte[], byte[]> decompress = null)
         {
             var buffer = new ByteArrayBuffer(data);
             string filetype;
@@ -293,7 +286,7 @@ namespace SERingAsteroids.OctreeStorage
 
                 try
                 {
-                    uncompressed = MyCompression.Decompress(data);
+                    uncompressed = decompress(data);
                 }
                 catch
                 {
@@ -306,10 +299,34 @@ namespace SERingAsteroids.OctreeStorage
             return TryRead(buffer, out storage) ? storage : null;
         }
 
-        public static OctreeStorage CreateAsteroid(int seed, float size, int generatorSeed, int defaultMaterial = 0)
+        private static readonly string[] DefaultMaterials = new string[]
         {
-            var voxelMaterialDefinitions = MyDefinitionManager.Static.GetVoxelMaterialDefinitions();
-            var defaultMaterials = voxelMaterialDefinitions.Select(e => new MaterialIndexEntry { Index = e.Index, Name = e.Id.SubtypeName }).ToArray();
+            "Stone_01",
+            "Stone_02",
+            "Stone_03",
+            "Stone_04",
+            "Stone_05",
+            "Iron_01",
+            "Iron_02",
+            "Nickel_01",
+            "Cobalt_01",
+            "Magnesium_01",
+            "Silicon_01",
+            "Silver_01",
+            "Gold_01",
+            "Platinum_01",
+            "Uraninite_01",
+            "Ice_01",
+            "Ice_02",
+            "Ice_03",
+            "Carbon_01",
+            "Potassium_01",
+            "Phosphorus_01"
+        };
+
+        public static OctreeStorage CreateAsteroid(int seed, float size, int generatorSeed, int defaultMaterial = 0, IEnumerable<MaterialIndexEntry> materials = null)
+        {
+            var defaultMaterials = DefaultMaterials.Select((e, i) => new MaterialIndexEntry { Index = (uint)i, Name = e }).ToArray();
 
             int isize = 32;
             int maxlod = 1;
@@ -338,7 +355,7 @@ namespace SERingAsteroids.OctreeStorage
                 },
                 MaterialIndexTable = new MaterialIndexTable
                 {
-                    Materials = defaultMaterials,
+                    Materials = materials?.ToArray() ?? defaultMaterials,
                 },
                 DataProvider = new CompositeShapeProvider
                 {
@@ -368,10 +385,9 @@ namespace SERingAsteroids.OctreeStorage
             };
         }
 
-        public static OctreeStorage CreatePlanet(long seed, long radius, string generatorName, int defaultMaterial = 0)
+        public static OctreeStorage CreatePlanet(long seed, long radius, string generatorName, int defaultMaterial = 0, IEnumerable<MaterialIndexEntry> materials = null)
         {
-            var voxelMaterialDefinitions = MyDefinitionManager.Static.GetVoxelMaterialDefinitions();
-            var defaultMaterials = voxelMaterialDefinitions.Select(e => new MaterialIndexEntry { Index = e.Index, Name = e.Id.SubtypeName }).ToArray();
+            var defaultMaterials = DefaultMaterials.Select((e, i) => new MaterialIndexEntry { Index = (uint)i, Name = e }).ToArray();
 
             int isize = 32;
             int maxlod = 1;
@@ -400,7 +416,7 @@ namespace SERingAsteroids.OctreeStorage
                 },
                 MaterialIndexTable = new MaterialIndexTable
                 {
-                    Materials = defaultMaterials,
+                    Materials = materials?.ToArray() ?? defaultMaterials,
                 },
                 DataProvider = new PlanetStorageProvider
                 {

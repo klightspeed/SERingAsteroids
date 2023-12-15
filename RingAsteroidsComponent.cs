@@ -1,4 +1,5 @@
-﻿using Sandbox.Game.Entities;
+﻿using Sandbox.Definitions;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
@@ -323,7 +324,9 @@ namespace SERingAsteroids
 #if false
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
 #else
-            var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed);
+            var voxelMaterialDefinitions = MyDefinitionManager.Static.GetVoxelMaterialDefinitions();
+            var defaultMaterials = voxelMaterialDefinitions.Select(e => new OctreeStorage.Chunks.MaterialIndexEntry { Index = e.Index, Name = e.Id.SubtypeName }).ToArray();
+            var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed, materials: defaultMaterials);
             var bytes = asteroid.GetBytes();
 
             IMyStorage storage;
