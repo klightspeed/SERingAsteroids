@@ -385,6 +385,7 @@ namespace SERingAsteroids
             {
                 var exampleConfig = ringConfig.Clone();
                 exampleConfig.PlanetName = planet.StorageName;
+                exampleConfig.ModId = modid;
                 exampleConfig.Enabled = exampleConfig.Enabled ?? false;
                 exampleConfig.EarlyLog = exampleConfig.EarlyLog ?? false;
                 exampleConfig.Vanilla = exampleConfig.Vanilla ?? false;
