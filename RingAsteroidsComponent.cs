@@ -282,7 +282,7 @@ namespace SERingAsteroids
                 ReloadConfig();
             }
 
-            MyAPIGateway.Parallel.Start(() =>
+            MyAPIGateway.Parallel.StartBackground(() =>
             {
                 _processing = true;
 
@@ -531,7 +531,7 @@ namespace SERingAsteroids
                     pendingVoxels.Add(voxelDetails);
                     SessionComponent.EnqueueVoxelAdd(voxelDetails);
 
-                    while (true)
+                    while (!SessionComponent.Unloading)
                     {
                         var completed = pendingVoxels.Where(e => e.VoxelMap != null).ToList();
 
