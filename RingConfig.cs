@@ -173,6 +173,8 @@ namespace SERingAsteroids
                 RingInclination = RingInclination,
                 RingInnerRadius = RingInnerRadius,
                 RingOuterRadius = RingOuterRadius,
+                ExclusionZoneSize = ExclusionZoneSize,
+                ExclusionZoneSizeMult = ExclusionZoneSizeMult,
                 RingZones = RingZones?.Select(e => new RingZone
                 {
                     InnerRadius = e.InnerRadius,
@@ -181,6 +183,9 @@ namespace SERingAsteroids
                     MaxAsteroidSize = e.MaxAsteroidSize,
                     MinAsteroidSize = e.MinAsteroidSize
                 }).ToList(),
+                LogDebug = LogDebug,
+                SizeExponent = SizeExponent,
+                TaperRingEdge = TaperRingEdge,
                 SectorSize = SectorSize,
                 Vanilla = Vanilla,
             };
@@ -311,6 +316,10 @@ namespace SERingAsteroids
 
                 if (ReadConfig(defConfigFileName, out config))
                 {
+                    config.PlanetName = null;
+                    config.Vanilla = null;
+                    config.ModId = null;
+                    config.Enabled = null;
                     configs.Add(config);
                     SBCStoredDefaultConfig = config;
                     SaveSBCStoredConfigs();
@@ -373,11 +382,15 @@ namespace SERingAsteroids
                     ringConfig.RingHeight                 = ringConfig.RingHeight                 ?? config.RingHeight;
                     ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? config.RingLongitudeAscendingNode;
                     ringConfig.SizeExponent               = ringConfig.SizeExponent               ?? config.SizeExponent;
+                    ringConfig.ExclusionZoneSize          = ringConfig.ExclusionZoneSize          ?? config.ExclusionZoneSize;
+                    ringConfig.ExclusionZoneSizeMult      = ringConfig.ExclusionZoneSizeMult      ?? config.ExclusionZoneSizeMult;
                     ringConfig.RingZones                  = ringConfig.RingZones                  ?? config.RingZones;
                     ringConfig.TaperRingEdge              = ringConfig.TaperRingEdge              ?? config.TaperRingEdge;
-                    ringConfig.Enabled                    = ringConfig.Enabled                    ?? config.Enabled;
                     ringConfig.EarlyLog                   = ringConfig.EarlyLog                   ?? config.EarlyLog;
                     ringConfig.LogDebug                   = ringConfig.LogDebug                   ?? config.LogDebug;
+
+                    if (config.PlanetName != null)
+                        ringConfig.Enabled                = ringConfig.Enabled                    ?? config.Enabled;
                 }
             }
 
@@ -387,8 +400,7 @@ namespace SERingAsteroids
                 exampleConfig.PlanetName = planet.StorageName;
                 exampleConfig.ModId = modid;
                 exampleConfig.Enabled = exampleConfig.Enabled ?? false;
-                exampleConfig.EarlyLog = exampleConfig.EarlyLog ?? false;
-                exampleConfig.Vanilla = exampleConfig.Vanilla ?? false;
+                exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
                 exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
@@ -401,7 +413,13 @@ namespace SERingAsteroids
 
             using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("ringDefaults.xml.example", typeof(RingAsteroidsComponent)))
             {
-                writer.Write(MyAPIGateway.Utilities.SerializeToXML(GlobalDefault));
+                var exampleDefaultConfig = GlobalDefault.Clone();
+                exampleDefaultConfig.Enabled = null;
+                exampleDefaultConfig.PlanetName = null;
+                exampleDefaultConfig.ModId = null;
+                exampleDefaultConfig.Vanilla = null;
+
+                writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleDefaultConfig));
             }
 
             return ringConfig;
@@ -447,7 +465,7 @@ namespace SERingAsteroids
             }
         }
 
-        private static Dictionary<string, string> PropNameShortestPrefixes = new Dictionary<string, string>
+        private static readonly Dictionary<string, string> PropNameShortestPrefixes = new Dictionary<string, string>
         {
             ["ena"] = "enabled",
             ["ea"] = "earlylog",
@@ -572,7 +590,7 @@ namespace SERingAsteroids
             }
         }
 
-        private static bool SequenceEquals(List<RingZone> x, List<RingZone> y)
+        private static bool SequenceEquals<T>(List<T> x, List<T> y)
         {
             if (ReferenceEquals(x, y)) return true;
             if (ReferenceEquals(x, null)) return false;

@@ -36,14 +36,7 @@ namespace SERingAsteroids
 
             while (VoxelsToAdd.TryDequeueSync(out addVoxelDetails))
             {
-                try
-                {
-                    addVoxelDetails.VoxelMap = addVoxelDetails.AddAction(addVoxelDetails.Seed, addVoxelDetails.Size, addVoxelDetails.GeneratorSeed, addVoxelDetails.Position, addVoxelDetails.Name);
-                }
-                catch (Exception ex)
-                {
-                    addVoxelDetails.Exception = ex;
-                }
+                addVoxelDetails.Execute();
 
                 voxelCountAdded++;
 
