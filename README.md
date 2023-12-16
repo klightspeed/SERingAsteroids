@@ -51,6 +51,7 @@ the mod storage directory.
   <MaxAsteroidSize>2048</MaxAsteroidSize>
   <EntityMovementThreshold>512</EntityMovementThreshold>
   <SizeExponent>2</SizeExponent>
+  <VoxelGeneratorVersion>4</VoxelGeneratorVersion>
   <ExclusionZoneSize xsi:nil="true" />
   <ExclusionZoneSizeMult xsi:nil="true" />
   <RingZones>
@@ -92,6 +93,7 @@ the mod storage directory.
 | ExclusionZoneSizeMult | 1.5  | -             | Minimum space around asteroid as a multiple of its size to exclude other asteroids |
 | TaperRingEdge | true         | -             | Taper inner and outer edges of ring |
 | SizeExponent  | 2.0          | -             | Size weighting exponent. Values larger than 1 prefer smaller sizes, while values smaller than 1 prefer larger sizes |
+| VoxelGeneratorVersion | -    | -             | Space Engineers voxel generator version - defaults to value in `VoxelGeneratorVersion` in `Sandbox.sbc` |
 | Enabled       | -            | -             | Set to true to enable the ring |
 | LogDebug      | -            | -             | Used for logging; log debugging information into a file per planet in local storage directory (by default in `AppData\Roaming\SpaceEngineers\Storage\{ModId}_{ClassName}`) |
 | EarlyLog      | -            | -             | Used for logging; start logging before planet is ring enable check |
@@ -110,6 +112,18 @@ RingZone:
 | MaxAsteroidSize | -                 | Override maximum asteroid size for this zone |
 | TaperEdges      | -                 | True to taper inner and outer edges toward the normal ring height |
 
-## Future work
+### Voxel Generator Versions
 
-I intend to add the ability to define and enable rings using chat commands in the future.
+| Version | Description |
+|---------|-------------|
+| 0       | Original procedural generator without ice (before 01.074) |
+| 1       | Default version before about September 2015 (introduced 01.074) |
+| 2       | Generation identical to version 1 (introduced somewhere between 01.079 and 01.083) |
+| 3       | New-style procedural generation (introduced 1.188) |
+| 4       | "No Uranium on planets and tweaks in distribution of ore on asteroids" (introduced 1.189) |
+
+## Future ideas
+
+* Add the ability to define and enable rings using chat commands in the future.
+* Better align the asteroid defaults with the Bylen rings (at the moment they are a little bit outside the ring in some places).
+* Add the ability to boost the chance of ice asteroids from the default 1% (probably using a GeneratorSeed based on the number of material kinds)

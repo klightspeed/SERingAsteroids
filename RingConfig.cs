@@ -25,6 +25,7 @@ namespace SERingAsteroids
         public double? SizeExponent { get; set; }
         public double? ExclusionZoneSize { get; set; }
         public double? ExclusionZoneSizeMult { get; set; }
+        public int? VoxelGeneratorVersion { get; set; }
         public List<RingZone> RingZones { get; set; }
         public bool? TaperRingEdge { get; set; }
         public bool? Enabled { get; set; }
@@ -175,6 +176,7 @@ namespace SERingAsteroids
                 RingOuterRadius = RingOuterRadius,
                 ExclusionZoneSize = ExclusionZoneSize,
                 ExclusionZoneSizeMult = ExclusionZoneSizeMult,
+                VoxelGeneratorVersion = VoxelGeneratorVersion,
                 RingZones = RingZones?.Select(e => new RingZone
                 {
                     InnerRadius = e.InnerRadius,
@@ -601,29 +603,30 @@ namespace SERingAsteroids
 
         public override bool Equals(object obj)
         {
-            RingConfig config = obj as RingConfig;
-            return !ReferenceEquals(config, null) &&
-                   PlanetName == config.PlanetName &&
-                   ModId == config.ModId &&
-                   Vanilla == config.Vanilla &&
-                   RingOuterRadius == config.RingOuterRadius &&
-                   RingInnerRadius == config.RingInnerRadius &&
-                   RingHeight == config.RingHeight &&
-                   SectorSize == config.SectorSize &&
-                   MaxAsteroidsPerSector == config.MaxAsteroidsPerSector &&
-                   RingLongitudeAscendingNode == config.RingLongitudeAscendingNode &&
-                   RingInclination == config.RingInclination &&
-                   MinAsteroidSize == config.MinAsteroidSize &&
-                   MaxAsteroidSize == config.MaxAsteroidSize &&
-                   EntityMovementThreshold == config.EntityMovementThreshold &&
-                   SizeExponent == config.SizeExponent &&
-                   ExclusionZoneSize == config.ExclusionZoneSize &&
-                   ExclusionZoneSizeMult == config.ExclusionZoneSizeMult &&
-                   SequenceEquals(RingZones, config.RingZones) &&
-                   TaperRingEdge == config.TaperRingEdge &&
-                   Enabled == config.Enabled &&
-                   EarlyLog == config.EarlyLog &&
-                   LogDebug == config.LogDebug;
+            RingConfig other = obj as RingConfig;
+            return !ReferenceEquals(other, null) &&
+                   PlanetName == other.PlanetName &&
+                   ModId == other.ModId &&
+                   Vanilla == other.Vanilla &&
+                   RingOuterRadius == other.RingOuterRadius &&
+                   RingInnerRadius == other.RingInnerRadius &&
+                   RingHeight == other.RingHeight &&
+                   SectorSize == other.SectorSize &&
+                   MaxAsteroidsPerSector == other.MaxAsteroidsPerSector &&
+                   RingLongitudeAscendingNode == other.RingLongitudeAscendingNode &&
+                   RingInclination == other.RingInclination &&
+                   MinAsteroidSize == other.MinAsteroidSize &&
+                   MaxAsteroidSize == other.MaxAsteroidSize &&
+                   EntityMovementThreshold == other.EntityMovementThreshold &&
+                   SizeExponent == other.SizeExponent &&
+                   ExclusionZoneSize == other.ExclusionZoneSize &&
+                   ExclusionZoneSizeMult == other.ExclusionZoneSizeMult &&
+                   VoxelGeneratorVersion == other.VoxelGeneratorVersion &&
+                   SequenceEquals(RingZones, other.RingZones) &&
+                   TaperRingEdge == other.TaperRingEdge &&
+                   Enabled == other.Enabled &&
+                   EarlyLog == other.EarlyLog &&
+                   LogDebug == other.LogDebug;
         }
 
         public override int GetHashCode()
@@ -645,6 +648,7 @@ namespace SERingAsteroids
             hashCode = hashCode * -1521134295 + SizeExponent.GetHashCode();
             hashCode = hashCode * -1521134295 + ExclusionZoneSize.GetHashCode();
             hashCode = hashCode * -1521134295 + ExclusionZoneSizeMult.GetHashCode();
+            hashCode = hashCode * -1521134295 + VoxelGeneratorVersion.GetHashCode();
 
             if (RingZones != null)
             {

@@ -324,7 +324,7 @@ namespace SERingAsteroids.OctreeStorage
             "Phosphorus_01"
         };
 
-        public static OctreeStorage CreateAsteroid(int seed, float size, int generatorSeed, int defaultMaterial = 0, IEnumerable<MaterialIndexEntry> materials = null)
+        public static OctreeStorage CreateAsteroid(int seed, float size, int generatorSeed, int defaultMaterial = 0, IEnumerable<MaterialIndexEntry> materials = null, int? generator = null)
         {
             var defaultMaterials = DefaultMaterials.Select((e, i) => new MaterialIndexEntry { Index = (uint)i, Name = e }).ToArray();
 
@@ -360,7 +360,7 @@ namespace SERingAsteroids.OctreeStorage
                 DataProvider = new CompositeShapeProvider
                 {
                     ProviderVersion = 3,
-                    Generator = 3,
+                    Generator = generator ?? 4,
                     Seed = seed,
                     Size = size,
                     UnusedCompat = 0,

@@ -32,6 +32,7 @@ namespace SERingAsteroids
         private double _sizeExponent = 2.0;
         private double _exclusionZone = 64.0;
         private double _exclusionZoneMult = 1.5;
+        private int _voxelGeneratorVersion;
         private bool _taperRingEdge;
         private bool _logDebug;
         private readonly List<RingZone> _ringZones = new List<RingZone>();
@@ -190,6 +191,7 @@ namespace SERingAsteroids
             _taperRingEdge = config.TaperRingEdge ?? true;
             _exclusionZone = config.ExclusionZoneSize ?? _minAsteroidSize;
             _exclusionZoneMult = config.ExclusionZoneSizeMult ?? 1.5;
+            _voxelGeneratorVersion = config.VoxelGeneratorVersion ?? MyAPIGateway.Session.SessionSettings.VoxelGeneratorVersion;
             _logDebug = config.LogDebug ?? false;
 
             if (config.RingZones != null)
@@ -318,14 +320,17 @@ namespace SERingAsteroids
             public AsteroidCreationException(string message, Exception innerException) : base(message, innerException) { }
         }
 
-        private IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name)
+        private IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name, int generator)
         {
             IMyVoxelMap voxelmap;
 #if false
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
 #else
             var voxelMaterialDefinitions = MyDefinitionManager.Static.GetVoxelMaterialDefinitions();
-            var defaultMaterials = voxelMaterialDefinitions.Select(e => new OctreeStorage.Chunks.MaterialIndexEntry { Index = e.Index, Name = e.Id.SubtypeName }).ToArray();
+            var defaultMaterials = 
+                voxelMaterialDefinitions
+                    .Where(e => e.SpawnsInAsteroids && e.MinVersion <= _voxelGeneratorVersion && e.MaxVersion >= _voxelGeneratorVersion)
+                    .Select(e => new OctreeStorage.Chunks.MaterialIndexEntry { Index = e.Index, Name = e.Id.SubtypeName }).ToArray();
             var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed, materials: defaultMaterials);
             var bytes = asteroid.GetBytes();
 
@@ -525,6 +530,7 @@ namespace SERingAsteroids
                         Seed = aseed,
                         Size = size,
                         GeneratorSeed = gseed,
+                        VoxelGeneratorVersion = _voxelGeneratorVersion,
                         AddAction = CreateProceduralAsteroid
                     };
 
