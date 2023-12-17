@@ -127,3 +127,4 @@ RingZone:
 
 * Add the ability to define and enable rings using chat commands.
 * Add the ability to boost the chance of ice asteroids from the default 1% (probably using a GeneratorSeed based on the number of material kinds)
+  - Note that adding or removing a mod that changes the ores that can appear in asteroids would make this an ice asteroid debuff for already-generated asteroids
