@@ -97,7 +97,7 @@ the mod storage directory.
 | Enabled       | -            | -             | Set to true to enable the ring |
 | LogDebug      | -            | -             | Used for logging; log debugging information into a file per planet in local storage directory (by default in `AppData\Roaming\SpaceEngineers\Storage\{ModId}_{ClassName}`) |
 | EarlyLog      | -            | -             | Used for logging; start logging before planet is ring enable check |
-| DebugDrawRingBounds -        | -             | Draw ring bounds with equatorial, ascending node, and maximum latitude planes |
+| DebugDrawRingBounds | -      | -             | Draw ring bounds with equatorial, ascending node, and maximum latitude planes |
 | RingZones     | -            | 1 zone        | Array of zero or more RingZone elements |
 
 RingZone:
