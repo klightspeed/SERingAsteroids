@@ -144,6 +144,7 @@ namespace SERingAsteroids
             _reloadRequired = false;
 
             var config = RingConfig.GetRingConfig(_planet, this);
+            SessionComponent.AddOrUpdateShownRing(config);
 
             if (config.EarlyLog == true || config.Enabled == true)
             {
@@ -191,6 +192,7 @@ namespace SERingAsteroids
             _taperRingEdge = config.TaperRingEdge ?? true;
             _exclusionZone = config.ExclusionZoneSize ?? _minAsteroidSize;
             _exclusionZoneMult = config.ExclusionZoneSizeMult ?? 1.5;
+            _ringMatrix = config.GetRingMatrix();
             _voxelGeneratorVersion = config.VoxelGeneratorVersion ?? MyAPIGateway.Session.SessionSettings.VoxelGeneratorVersion;
             _logDebug = config.LogDebug ?? false;
 
@@ -214,12 +216,8 @@ namespace SERingAsteroids
             _minRingSectorY = (int)(_ringInnerRadius / _sectorSize);
             _maxRingSectorY = (int)(_ringOuterRadius / _sectorSize) - 1;
 
-            var rotx = MatrixD.CreateRotationX(-_ringInclination * Math.PI / 180);
-            var roty = MatrixD.CreateRotationY(_ringLongitudeAscendingNode * Math.PI / 180);
             var planetPos = _planet.PositionComp.GetPosition();
             var ringbbmax = new Vector3D(_ringOuterRadius * 2, _ringOuterRadius * 2, _ringOuterRadius * 2);
-            var trans = MatrixD.CreateTranslation(_planet.PositionComp.GetPosition());
-            _ringMatrix = rotx * roty * trans;
             _ringInvMatrix = MatrixD.Invert(_ringMatrix);
             _ringBoundingBox = new BoundingBoxD(planetPos - ringbbmax, planetPos + ringbbmax);
 

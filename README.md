@@ -97,6 +97,7 @@ the mod storage directory.
 | Enabled       | -            | -             | Set to true to enable the ring |
 | LogDebug      | -            | -             | Used for logging; log debugging information into a file per planet in local storage directory (by default in `AppData\Roaming\SpaceEngineers\Storage\{ModId}_{ClassName}`) |
 | EarlyLog      | -            | -             | Used for logging; start logging before planet is ring enable check |
+| DebugDrawRingBounds -        | -             | Draw ring bounds with equatorial, ascending node, and maximum latitude planes |
 | RingZones     | -            | 1 zone        | Array of zero or more RingZone elements |
 
 RingZone:
@@ -124,6 +125,5 @@ RingZone:
 
 ## Future ideas
 
-* Add the ability to define and enable rings using chat commands in the future.
-* Better align the asteroid defaults with the Bylen rings (at the moment they are a little bit outside the ring in some places).
+* Add the ability to define and enable rings using chat commands.
 * Add the ability to boost the chance of ice asteroids from the default 1% (probably using a GeneratorSeed based on the number of material kinds)

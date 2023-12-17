@@ -1,15 +1,35 @@
-﻿namespace SERingAsteroids
+﻿using ProtoBuf;
+
+namespace SERingAsteroids
 {
+    [ProtoContract]
     public class RingZone
     {
+        [ProtoMember(1)]
         public double InnerRadius { get; set; }
+
+        [ProtoMember(2)]
         public double OuterRadius { get; set; }
+
+        [ProtoMember(3)]
         public double? RingHeight { get; set; }
+
+        [ProtoMember(4)]
         public double? InnerRingHeight { get; set; }
+
+        [ProtoMember(5)]
         public double? OuterRingHeight { get; set; }
+
+        [ProtoMember(6)]
         public int? MaxAsteroidsPerSector { get; set; }
+
+        [ProtoMember(7)]
         public double? MinAsteroidSize { get; set; }
+
+        [ProtoMember(8)]
         public double? MaxAsteroidSize { get; set; }
+
+        [ProtoMember(9)]
         public bool? TaperEdges { get; set; }
 
         public override bool Equals(object obj)

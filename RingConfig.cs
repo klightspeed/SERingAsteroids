@@ -1,37 +1,91 @@
-﻿using Sandbox.Game.Entities;
+﻿using ProtoBuf;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VRage.Game.ModAPI;
 using VRage.Utils;
+using VRageMath;
 
 namespace SERingAsteroids
 {
+    [ProtoContract]
     public class RingConfig
     {
+        [ProtoMember(1)]
         public string PlanetName { get; set; }
+
+        [ProtoMember(2)]
         public string ModId { get; set; }
+
+        [ProtoMember(3)]
         public bool? Vanilla { get; set; }
+
+        [ProtoMember(4)]
         public double? RingOuterRadius { get; set; }
+
+        [ProtoMember(5)]
         public double? RingInnerRadius { get; set; }
+
+        [ProtoMember(6)]
         public double? RingHeight { get; set; }
+
+        [ProtoMember(7)]
         public double? SectorSize { get; set; }
+
+        [ProtoMember(8)]
         public int? MaxAsteroidsPerSector { get; set; }
+
+        [ProtoMember(9)]
         public double? RingLongitudeAscendingNode { get; set; }
+
+        [ProtoMember(10)]
         public double? RingInclination { get; set; }
+
+        [ProtoMember(11)]
         public double? MinAsteroidSize { get; set; }
+
+        [ProtoMember(12)]
         public double? MaxAsteroidSize { get; set; }
+
+        [ProtoMember(13)]
         public double? EntityMovementThreshold { get; set; }
+
+        [ProtoMember(14)]
         public double? SizeExponent { get; set; }
+
+        [ProtoMember(15)]
         public double? ExclusionZoneSize { get; set; }
+
+        [ProtoMember(16)]
         public double? ExclusionZoneSizeMult { get; set; }
+
+        [ProtoMember(17)]
         public int? VoxelGeneratorVersion { get; set; }
-        public List<RingZone> RingZones { get; set; }
+
+        [ProtoMember(18)]
         public bool? TaperRingEdge { get; set; }
+
+        [ProtoMember(19)]
         public bool? Enabled { get; set; }
+
+        [ProtoMember(20)]
         public bool? EarlyLog { get; set; }
+
+        [ProtoMember(21)]
         public bool? LogDebug { get; set; }
 
+        [ProtoMember(22)]
+        public bool? DebugDrawRingBounds { get; set; }
+
+        [ProtoMember(99)]
+        public Vector3D? RingCentre { get; set; }
+
+        [ProtoMember(100)]
+        public List<RingZone> RingZones { get; set; }
+
+        [ProtoIgnore]
         public bool IsConfigComplete
         {
             get
@@ -65,6 +119,18 @@ namespace SERingAsteroids
             if (EntityMovementThreshold == null) yield return "EntityMovementThreshold";
         }
 
+        public MatrixD GetRingMatrix()
+        {
+            var ringInclination = RingInclination ?? 0;
+            var ringLongitudeAscendingNode = RingLongitudeAscendingNode ?? 0;
+            var centrepos = RingCentre ?? Vector3D.Zero;
+
+            var rotx = MatrixD.CreateRotationX(-ringInclination * Math.PI / 180);
+            var roty = MatrixD.CreateRotationY(ringLongitudeAscendingNode * Math.PI / 180);
+            var trans = MatrixD.CreateTranslation(centrepos);
+            return rotx * roty * trans;
+        }
+
         public static RingConfig GlobalDefault { get; set; } = new RingConfig
         {
             MinAsteroidSize = 128,
@@ -88,7 +154,7 @@ namespace SERingAsteroids
                 {
                     new RingZone
                     {
-                        InnerRadius = 740000,
+                        InnerRadius = 730000,
                         OuterRadius = 780000,
                         MaxAsteroidsPerSector = 0
                     },
@@ -101,7 +167,7 @@ namespace SERingAsteroids
                     new RingZone
                     {
                         InnerRadius = 980000,
-                        OuterRadius = 1020000,
+                        OuterRadius = 1030000,
                         MaxAsteroidsPerSector = 0
                     }
                 }
@@ -109,8 +175,8 @@ namespace SERingAsteroids
             new RingConfig
             {
                 PlanetName = "Bylen",
-                RingLongitudeAscendingNode = -2.85,
-                RingInclination = 22.42,
+                RingLongitudeAscendingNode = -2.67,
+                RingInclination = 22.44,
                 RingOuterRadius = 1100000.0,
                 RingInnerRadius = 650000.0,
                 RingHeight = 3500.0,
@@ -130,8 +196,8 @@ namespace SERingAsteroids
             {
                 PlanetName = "Demus",
                 ModId = "1670307722.sbm",
-                RingLongitudeAscendingNode = -2.85,
-                RingInclination = 22.42,
+                RingLongitudeAscendingNode = -2.67,
+                RingInclination = 22.44,
                 RingOuterRadius = 1100000.0,
                 RingInnerRadius = 650000.0,
                 RingHeight = 3500.0,
@@ -195,22 +261,20 @@ namespace SERingAsteroids
 
         public static void LoadSBCStoredConfigs()
         {
-            List<RingConfig> configList;
+            string configxml;
 
-            if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_RingConfigs", out configList))
+            if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_RingConfigs", out configxml))
             {
-                SBCStoredConfigs = configList;
+                SBCStoredConfigs = MyAPIGateway.Utilities.SerializeFromXML<List<RingConfig>>(configxml);
             }
             else
             {
                 SBCStoredConfigs = new List<RingConfig>();
             }
 
-            RingConfig config;
-
-            if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_DefaultRingConfig", out config))
+            if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_DefaultRingConfig", out configxml))
             {
-                SBCStoredDefaultConfig = config;
+                SBCStoredDefaultConfig = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(configxml);
             }
         }
 
@@ -218,12 +282,16 @@ namespace SERingAsteroids
         {
             if (SBCStoredConfigs != null && SBCStoredConfigs.Count > 0)
             {
-                MyAPIGateway.Utilities.SetVariable("SERingAsteroids_RingConfigs", SBCStoredConfigs);
+                var xml = MyAPIGateway.Utilities.SerializeToXML(SBCStoredConfigs);
+
+                MyAPIGateway.Utilities.SetVariable("SERingAsteroids_RingConfigs", xml);
             }
 
             if (SBCStoredDefaultConfig != null)
             {
-                MyAPIGateway.Utilities.SetVariable("SERingAsteroids_DefaultRingConfig", SBCStoredDefaultConfig);
+                var xml = MyAPIGateway.Utilities.SerializeToXML(SBCStoredDefaultConfig);
+
+                MyAPIGateway.Utilities.SetVariable("SERingAsteroids_DefaultRingConfig", xml);
             }
         }
 
@@ -407,6 +475,8 @@ namespace SERingAsteroids
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
+                exampleConfig.RingCentre = null;
+
                 using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(configFileName + ".example", typeof(RingAsteroidsComponent)))
                 {
                     writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleConfig));
@@ -420,9 +490,22 @@ namespace SERingAsteroids
                 exampleDefaultConfig.PlanetName = null;
                 exampleDefaultConfig.ModId = null;
                 exampleDefaultConfig.Vanilla = null;
+                exampleDefaultConfig.RingCentre = null;
+                exampleDefaultConfig.RingZones = null;
 
                 writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleDefaultConfig));
             }
+
+            ringConfig.RingCentre = planet.PositionComp.GetPosition();
+
+            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? planet.MaximumRadius * 1.25;
+            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? planet.MaximumRadius * 2;
+            ringConfig.RingHeight = ringConfig.RingHeight ?? 2000;
+            ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
+            ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
+            ringConfig.SectorSize = ringConfig.SectorSize ?? 10000;
+            ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
+            ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
 
             return ringConfig;
         }
@@ -467,7 +550,7 @@ namespace SERingAsteroids
             }
         }
 
-        private static readonly Dictionary<string, string> PropNameShortestPrefixes = new Dictionary<string, string>
+        public static readonly Dictionary<string, string> PropNameShortestPrefixes = new Dictionary<string, string>
         {
             ["ena"] = "enabled",
             ["ea"] = "earlylog",
@@ -496,11 +579,103 @@ namespace SERingAsteroids
             ["xzmul"] = "exclusionzonesizemult"
         };
 
-        public static void UpdateConfig(MyPlanet planet, string propname, string strvalue)
+        public static void UpdateConfig(RingConfig config, string propname, string strvalue, MyPlanet planet = null, IMyPlayer player = null)
         {
             propname = propname.ToLowerInvariant();
             propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
 
+            bool? boolval = null;
+            double? doubleval = null;
+            double dblval;
+            Vector3D? relvector = null;
+            Vector3D? lookvector = null;
+
+            if (double.TryParse(strvalue, out dblval))
+            {
+                doubleval = dblval;
+            }
+
+            if (strvalue?.ToLowerInvariant() == "yes" || strvalue?.ToLowerInvariant() == "true" || doubleval > 0)
+            {
+                boolval = true;
+            }
+            else if (strvalue?.ToLowerInvariant() == "no" || strvalue?.ToLowerInvariant() == "false" || doubleval <= 0)
+            {
+                boolval = false;
+            }
+
+            var camera = MyAPIGateway.Session.Camera;
+
+            if (strvalue?.ToLowerInvariant()?.StartsWith("@p") == true && planet != null && player != null && player.Character != null)
+            {
+                var playerpos = player.GetPosition();
+                var planetpos = planet.PositionComp.GetPosition();
+                relvector = playerpos - planetpos;
+                lookvector = player.Character.AimedPoint;
+            }
+            else if (strvalue.ToLowerInvariant()?.StartsWith("@s") == true && planet != null && camera != null)
+            {
+                var camerapos = camera.Position;
+                var planetpos = planet.PositionComp.GetPosition();
+                relvector = camerapos - planetpos;
+                lookvector = camera.ProjectionMatrix.Forward;
+            }
+
+            if (boolval != null || string.IsNullOrEmpty(strvalue))
+            {
+                if (propname.StartsWith("zone"))
+                {
+                    var propParts = propname.Split('.');
+                    var propAt = propParts[0].Split('@');
+
+                }
+                else
+                {
+                    switch (propname.ToLowerInvariant())
+                    {
+                        case "taperringedge": config.TaperRingEdge = boolval; break;
+                        case "enabled": config.Enabled = boolval; break;
+                        case "earlylog": config.EarlyLog = boolval; break;
+                        case "logdebug": config.LogDebug = boolval; break;
+                    }
+                }
+            }
+
+            if (doubleval != null || string.IsNullOrEmpty(strvalue))
+            {
+                if (propname.StartsWith("zone"))
+                {
+
+                }
+                else
+                {
+                    switch (propname.ToLowerInvariant())
+                    {
+                        case "ringouterradius": config.RingOuterRadius = doubleval; break;
+                        case "ringinnerradius": config.RingInnerRadius = doubleval; break;
+                        case "ringheight": config.RingHeight = doubleval; break;
+                        case "sectorsize": config.SectorSize = doubleval; break;
+                        case "maxasteroidspersector": config.MaxAsteroidsPerSector = (int?)doubleval; break;
+                        case "ringlongitudeascendingnode": config.RingLongitudeAscendingNode = doubleval; break;
+                        case "ringinclination": config.RingInclination = doubleval; break;
+                        case "minasteroidsize": config.MinAsteroidSize = doubleval; break;
+                        case "maxasteroidsize": config.MaxAsteroidSize = doubleval; break;
+                        case "entitymovementthreshold": config.EntityMovementThreshold = doubleval; break;
+                        case "sizeexponent": config.SizeExponent = doubleval; break;
+                        case "exclusionzonesize": config.ExclusionZoneSize = doubleval; break;
+                        case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
+                    }
+                }
+            }
+
+            if (relvector != null)
+            {
+
+            }
+        }
+
+        public static void UpdateConfig(MyPlanet planet, string propname, string strvalue, IMyPlayer player = null)
+        {
             if (planet == null)
                 return;
 
@@ -525,54 +700,7 @@ namespace SERingAsteroids
                 SBCStoredConfigs.Add(config);
             }
 
-            bool? boolval = null;
-            double? doubleval = null;
-            double dblval;
-
-            if (double.TryParse(strvalue, out dblval))
-            {
-                doubleval = dblval;
-            }
-
-            if (strvalue?.ToLowerInvariant() == "yes" || strvalue?.ToLowerInvariant() == "true" || doubleval > 0)
-            {
-                boolval = true;
-            }
-            else if (strvalue?.ToLowerInvariant() == "no" || strvalue?.ToLowerInvariant() == "false" || doubleval <= 0)
-            {
-                boolval = false;
-            }
-
-            if (boolval != null || string.IsNullOrEmpty(strvalue))
-            {
-                switch (propname.ToLowerInvariant())
-                {
-                    case "taperringedge": config.TaperRingEdge = boolval; break;
-                    case "enabled": config.Enabled = boolval; break;
-                    case "earlylog": config.EarlyLog = boolval; break;
-                    case "logdebug": config.LogDebug = boolval; break;
-                }
-            }
-
-            if (doubleval != null || string.IsNullOrEmpty(strvalue))
-            {
-                switch (propname.ToLowerInvariant())
-                {
-                    case "ringouterradius": config.RingOuterRadius = doubleval; break;
-                    case "ringinnerradius": config.RingInnerRadius = doubleval; break;
-                    case "ringheight": config.RingHeight = doubleval; break;
-                    case "sectorsize": config.SectorSize = doubleval; break;
-                    case "maxasteroidspersector": config.MaxAsteroidsPerSector = (int?)doubleval; break;
-                    case "ringlongitudeascendingnode": config.RingLongitudeAscendingNode = doubleval; break;
-                    case "ringinclination": config.RingInclination = doubleval; break;
-                    case "minasteroidsize": config.MinAsteroidSize = doubleval; break;
-                    case "maxasteroidsize": config.MaxAsteroidSize = doubleval; break;
-                    case "entitymovementthreshold": config.EntityMovementThreshold = doubleval; break;
-                    case "sizeexponent": config.SizeExponent = doubleval; break;
-                    case "exclusionzonesize": config.ExclusionZoneSize = doubleval; break;
-                    case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
-                }
-            }
+            UpdateConfig(config, propname, strvalue, planet, player);
         }
 
         public static void RequestReload(MyPlanet planet, bool? enabled)
