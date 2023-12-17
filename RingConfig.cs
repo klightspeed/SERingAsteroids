@@ -79,6 +79,9 @@ namespace SERingAsteroids
         [ProtoMember(22)]
         public bool? DebugDrawRingBounds { get; set; }
 
+        [ProtoMember(23)]
+        public double? PlanetRadius { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 
@@ -148,6 +151,7 @@ namespace SERingAsteroids
             {
                 PlanetName = "Bylen", // Ares at War Part 2/3
                 ModId = "2742647898.sbm",
+                PlanetRadius = 500000,
                 RingLongitudeAscendingNode = 0,
                 RingInclination = 0,
                 RingZones = new List<RingZone>
@@ -175,10 +179,11 @@ namespace SERingAsteroids
             new RingConfig
             {
                 PlanetName = "Bylen",
+                PlanetRadius = 500000,
                 RingLongitudeAscendingNode = -2.67,
                 RingInclination = 22.44,
-                RingOuterRadius = 1100000.0,
                 RingInnerRadius = 650000.0,
+                RingOuterRadius = 1100000.0,
                 RingHeight = 3500.0,
                 SectorSize = 10000.0,
                 MaxAsteroidsPerSector = 50,
@@ -195,23 +200,14 @@ namespace SERingAsteroids
             new RingConfig
             {
                 PlanetName = "Demus",
-                ModId = "1670307722.sbm",
+                PlanetRadius = 76200,
                 RingLongitudeAscendingNode = -2.67,
                 RingInclination = 22.44,
-                RingOuterRadius = 1100000.0,
-                RingInnerRadius = 650000.0,
-                RingHeight = 3500.0,
+                RingInnerRadius = 100000.0,
+                RingOuterRadius = 170000.0,
+                RingHeight = 1000.0,
                 SectorSize = 10000.0,
-                MaxAsteroidsPerSector = 50,
-                RingZones = new List<RingZone>
-                {
-                    new RingZone
-                    {
-                        InnerRadius = 880000,
-                        OuterRadius = 920000,
-                        MaxAsteroidsPerSector = 10
-                    }
-                }
+                MaxAsteroidsPerSector = 10
             }
         };
 
@@ -229,6 +225,7 @@ namespace SERingAsteroids
             {
                 PlanetName = PlanetName,
                 ModId = ModId,
+                PlanetRadius = PlanetRadius,
                 MaxAsteroidSize = MaxAsteroidSize,
                 MaxAsteroidsPerSector = MaxAsteroidsPerSector,
                 MinAsteroidSize = MinAsteroidSize,
@@ -256,6 +253,7 @@ namespace SERingAsteroids
                 TaperRingEdge = TaperRingEdge,
                 SectorSize = SectorSize,
                 Vanilla = Vanilla,
+                DebugDrawRingBounds = DebugDrawRingBounds,
             };
         }
 
@@ -438,7 +436,7 @@ namespace SERingAsteroids
 
             foreach (var config in configs)
             {
-                if (config.ModId == null || modid != null && config.ModId == modid || modid == null && config.Vanilla == true)
+                if (config.ModId == null || (modid != null && config.ModId == modid) || (modid == null && config.Vanilla == true))
                 {
                     ringConfig.PlanetName                 = ringConfig.PlanetName                 ?? config.PlanetName;
                     ringConfig.RingInclination            = ringConfig.RingInclination            ?? config.RingInclination;
@@ -458,9 +456,32 @@ namespace SERingAsteroids
                     ringConfig.TaperRingEdge              = ringConfig.TaperRingEdge              ?? config.TaperRingEdge;
                     ringConfig.EarlyLog                   = ringConfig.EarlyLog                   ?? config.EarlyLog;
                     ringConfig.LogDebug                   = ringConfig.LogDebug                   ?? config.LogDebug;
+                    ringConfig.DebugDrawRingBounds        = ringConfig.DebugDrawRingBounds        ?? config.DebugDrawRingBounds;
+                    ringConfig.PlanetRadius               = ringConfig.PlanetRadius               ?? config.PlanetRadius;
 
                     if (config.PlanetName != null)
                         ringConfig.Enabled                = ringConfig.Enabled                    ?? config.Enabled;
+                }
+            }
+
+            if (ringConfig.PlanetRadius != null && planet.AverageRadius != ringConfig.PlanetRadius)
+            {
+                var sizemult = planet.AverageRadius / ringConfig.PlanetRadius.Value;
+                ringConfig.RingInnerRadius *= sizemult;
+                ringConfig.RingOuterRadius *= sizemult;
+                ringConfig.RingHeight *= sizemult;
+                ringConfig.SectorSize *= sizemult;
+
+                if (ringConfig.RingZones != null)
+                {
+                    foreach (var zone in ringConfig.RingZones)
+                    {
+                        zone.InnerRadius *= sizemult;
+                        zone.OuterRadius *= sizemult;
+                        zone.InnerRingHeight *= sizemult;
+                        zone.OuterRingHeight *= sizemult;
+                        zone.RingHeight *= sizemult;
+                    }
                 }
             }
 
@@ -472,6 +493,7 @@ namespace SERingAsteroids
                 exampleConfig.Enabled = exampleConfig.Enabled ?? false;
                 exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
                 exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
+                exampleConfig.PlanetRadius = planet.AverageRadius;
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
@@ -736,6 +758,7 @@ namespace SERingAsteroids
                    PlanetName == other.PlanetName &&
                    ModId == other.ModId &&
                    Vanilla == other.Vanilla &&
+                   PlanetRadius == other.PlanetRadius &&
                    RingOuterRadius == other.RingOuterRadius &&
                    RingInnerRadius == other.RingInnerRadius &&
                    RingHeight == other.RingHeight &&
@@ -754,7 +777,8 @@ namespace SERingAsteroids
                    TaperRingEdge == other.TaperRingEdge &&
                    Enabled == other.Enabled &&
                    EarlyLog == other.EarlyLog &&
-                   LogDebug == other.LogDebug;
+                   LogDebug == other.LogDebug &&
+                   DebugDrawRingBounds == other.DebugDrawRingBounds;
         }
 
         public override int GetHashCode()
@@ -763,6 +787,7 @@ namespace SERingAsteroids
             hashCode = hashCode * -1521134295 + PlanetName?.GetHashCode() ?? 0;
             hashCode = hashCode * -1521134295 + ModId?.GetHashCode() ?? 0;
             hashCode = hashCode * -1521134295 + Vanilla.GetHashCode();
+            hashCode = hashCode * -1521134295 + PlanetRadius.GetHashCode();
             hashCode = hashCode * -1521134295 + RingOuterRadius.GetHashCode();
             hashCode = hashCode * -1521134295 + RingInnerRadius.GetHashCode();
             hashCode = hashCode * -1521134295 + RingHeight.GetHashCode();
@@ -792,6 +817,7 @@ namespace SERingAsteroids
             hashCode = hashCode * -1521134295 + Enabled.GetHashCode();
             hashCode = hashCode * -1521134295 + EarlyLog.GetHashCode();
             hashCode = hashCode * -1521134295 + LogDebug.GetHashCode();
+            hashCode = hashCode * -1521134295 + DebugDrawRingBounds.GetHashCode();
             return hashCode;
         }
     }

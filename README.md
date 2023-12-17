@@ -26,13 +26,13 @@ e.g. for `Bylen-12345d120000.vx2` will be stored in
 Default settings exist for the following planets:
 * Bylen (from e.g. Paradise)
 * Bylen as it is in Ares at War
-* Demus as defined in the Perdiso mod
+* Demus
 
 These are disabled by default, and need to be enabled by editing and
 renaming the `.xml.example` configuration file(s) that are written in
 the mod storage directory.
 
-### Configuration settings
+### Example XML
 
 ```xml
 <?xml version="1.0" encoding="utf-16"?>
@@ -74,18 +74,21 @@ the mod storage directory.
 </RingConfig>
 ```
 
+### Ring configuration options
+
 | Option name | Global Default | Bylen Default | Description |
 |-------------|----------------|---------------|-------------|
 | PlanetName  | -              | -             | Planet storage name (from config file basename) |
 | ModId       | -              | -             | Used to anchor the config to a specific mod (i.e. not apply if the planet comes from a different mod) |
 | Vanilla     | -              | false         | Set to true if putting rings around a base-game planet |
+| PlanetRadius | -             | 500000        | Planet radius for which the below values are defined |
 | RingOuterRadius | -          | 1100000       | Ring outer radius in metres |
 | RingInnerRadius | -          | 650000        | Ring inner radius in metres |
 | RingHeight      | -          | 3500          | Distance between ring plane and upper / lower limit of ring |
 | SectorSize      | -          | 10000         | Ring sector size in metres |
 | MaxAsteroidsPerSector | -    | 50            | Maximum asteroids per sector |
-| RingLongitudeAscendingNode | - | -2.85       | Longitude where the ring crosses the planet's equator going northwards (ascending node) |
-| RingInclination | -          | 22.42         | Inclination of ring to planet's equator |
+| RingLongitudeAscendingNode | - | -2.67       | Longitude where the ring crosses the planet's equator going northwards (ascending node) |
+| RingInclination | -          | 22.44         | Inclination of ring to planet's equator |
 | MinAsteroidSize | 128        | -             | Minimum asteroid size in metres |
 | MaxAsteroidSize | 2048       | -             | Maximum asteroid size in metres |
 | EntityMovementThreshold | 512 | -            | Distance any grid or player needs to move before new sectors are considered for population with asteroids |
@@ -100,7 +103,8 @@ the mod storage directory.
 | DebugDrawRingBounds | -      | -             | Draw ring bounds with equatorial, ascending node, and maximum latitude planes |
 | RingZones     | -            | 1 zone        | Array of zero or more RingZone elements |
 
-RingZone:
+### Ring zone options
+
 | OptionName   | Bylen zone 1 Default | Description |
 |--------------|----------------------|-------------|
 | InnerRadius  | 880000               | Inner radius of ring zone |
