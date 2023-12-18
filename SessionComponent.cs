@@ -18,10 +18,15 @@ namespace SERingAsteroids
         public const ushort NETWORK_ID = 0xe591;
 
         public static bool Unloading { get; private set; }
-        private static readonly Queue<AddVoxelDetails> VoxelsToAdd = new Queue<AddVoxelDetails>();
-        private bool IsInitialized;
-        private static readonly Dictionary<string, RingConfig> DrawRings = new Dictionary<string, RingConfig>();
-        private static List<MyTuple<MyQuadD, Color>> DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
+        
+        public static int VoxelAddQueueLength => _VoxelsToAdd.Count;
+        public static int VoxelDelQueueLength => _VoxelsToDelete.Count;
+
+        private static readonly Queue<ProceduralVoxelDetails> _VoxelsToAdd = new Queue<ProceduralVoxelDetails>();
+        private static readonly Queue<ProceduralVoxelDetails> _VoxelsToDelete = new Queue<ProceduralVoxelDetails>();
+        private bool _IsInitialized;
+        private static readonly Dictionary<string, RingConfig> _DrawRings = new Dictionary<string, RingConfig>();
+        private static List<MyTuple<MyQuadD, Color>> _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
 
         public override void SaveData()
         {
@@ -158,7 +163,7 @@ namespace SERingAsteroids
                     }
                 }
 
-                DrawRings[config.PlanetName] = new RingConfig
+                _DrawRings[config.PlanetName] = new RingConfig
                 {
                     PlanetName = config.PlanetName,
                     SectorSize = config.SectorSize,
@@ -178,7 +183,7 @@ namespace SERingAsteroids
 
         public static void RemoveShownRing(string name)
         {
-            DrawRings.Remove(name);
+            _DrawRings.Remove(name);
             UpdateDrawnRingQuads();
         }
 
@@ -186,7 +191,7 @@ namespace SERingAsteroids
         {
             var quads = new List<MyTuple<MyQuadD, Color>>();
 
-            foreach (var config in DrawRings.Values)
+            foreach (var config in _DrawRings.Values)
             {
                 if (config.RingCentre != null &&
                     config.RingZones != null &&
@@ -256,7 +261,7 @@ namespace SERingAsteroids
                 }
             }
 
-            DrawnRingQuads = quads;
+            _DrawnRingQuads = quads;
         }
 
         public override void Draw()
@@ -268,7 +273,7 @@ namespace SERingAsteroids
 
             var lines = new HashSet<MyTuple<Vector3D, Vector3D, Vector4>>();
 
-            foreach (var q in DrawnRingQuads)
+            foreach (var q in _DrawnRingQuads)
             {
                 var quad = q.Item1;
                 var colour = q.Item2.ToVector4();
@@ -301,38 +306,69 @@ namespace SERingAsteroids
             }
         }
 
-        public static void EnqueueVoxelAdd(AddVoxelDetails voxelDetails)
+        public static void EnqueueVoxelAdd(ProceduralVoxelDetails voxelDetails)
         {
-            lock (((ICollection)VoxelsToAdd).SyncRoot)
+            if (!voxelDetails.AddPending)
             {
-                VoxelsToAdd.Enqueue(voxelDetails);
+                lock (((ICollection)_VoxelsToAdd).SyncRoot)
+                {
+                    if (voxelDetails.VoxelMap?.Closed != false)
+                    {
+                        voxelDetails.AddPending = true;
+                        _VoxelsToAdd.Enqueue(voxelDetails);
+                    }
+                }
+            }
+        }
+
+        public static void EnqueueVoxelDelete(ProceduralVoxelDetails voxelDetails)
+        {
+            if (!voxelDetails.DeletePending)
+            {
+                lock (((ICollection)_VoxelsToDelete).SyncRoot)
+                {
+                    voxelDetails.DeletePending = true;
+                    _VoxelsToDelete.Enqueue(voxelDetails);
+                }
             }
         }
 
         public override void UpdateBeforeSimulation()
         {
-            if (!IsInitialized)
+            if (!_IsInitialized)
             {
                 //MyAPIGateway.Utilities.MessageEnteredSender += Utilities_MessageEnteredSender;
                 //MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(NETWORK_ID, MessageHandler);
-                IsInitialized = true;
+                _IsInitialized = true;
             }
 
             if (MyAPIGateway.Multiplayer.IsServer)
             {
-                AddVoxelDetails addVoxelDetails;
-                int voxelCountAdded = 0;
+                ProceduralVoxelDetails voxelDetails;
+                int voxelCountProcessed = 0;
 
-                while (VoxelsToAdd.TryDequeueSync(out addVoxelDetails))
+                while (voxelCountProcessed < 5 && _VoxelsToAdd.TryDequeueSync(out voxelDetails))
                 {
-                    addVoxelDetails.Execute();
-
-                    voxelCountAdded++;
-
-                    if (voxelCountAdded > 5)
+                    if (voxelDetails.AddPending && !voxelDetails.DeletePending)
                     {
-                        break;
+                        voxelDetails.ExecuteAdd();
+                        voxelDetails.AddPending = false;
                     }
+
+                    voxelCountProcessed++;
+                }
+
+                while (voxelCountProcessed < 5 && _VoxelsToDelete.TryDequeueSync(out voxelDetails))
+                {
+                    if (voxelDetails.DeletePending && !voxelDetails.AddPending && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed)
+                    {
+                        voxelDetails.VoxelMap.Close();
+                    }
+
+                    voxelDetails.AddPending = false;
+                    voxelDetails.DeletePending = false;
+
+                    voxelCountProcessed++;
                 }
             }
         }
