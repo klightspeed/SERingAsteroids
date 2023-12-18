@@ -841,7 +841,57 @@ namespace SERingAsteroids
 
                 foreach (var voxelCreate in voxelCreates.Values)
                 {
-                    var voxeldist = entities.Min(e => (_entityPositions[e.EntityId] - voxelCreate.Position).Length());
+                    var voxeldist = double.MaxValue;
+
+                    foreach (var entity in entities)
+                    {
+                        var distsq = (_entityPositions[entity.EntityId] - voxelCreate.Position).LengthSquared();
+
+                        if (entity is IMyCubeGrid && !entity.Closed)
+                        {
+                            var grid = (IMyCubeGrid)entity;
+                            var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
+                            var maxpos = grid.Max;
+                            var minpos = grid.Min;
+                            var nearestcorner = Vector3I.Clamp(gridpos, grid.Min, grid.Max);
+                            distsq = (grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position).LengthSquared();
+                        }
+
+                        if (distsq < voxeldist * voxeldist)
+                        {
+                            if (entity is IMyCubeGrid)
+                            {
+                                var grid = (IMyCubeGrid)entity;
+                                var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
+                                var blocks = new List<IMySlimBlock>();
+                                grid.GetBlocks(blocks);
+                                var mingriddistsq = long.MaxValue;
+
+                                foreach (var block in blocks)
+                                {
+                                    var vec = (block.Position - gridpos);
+                                    var vecdistsq = (long)vec.X * vec.X + (long)vec.Y * vec.Y + (long)vec.Z * vec.Z;
+
+                                    if (vecdistsq < mingriddistsq)
+                                    {
+                                        mingriddistsq = vecdistsq;
+                                    }
+                                }
+
+                                var mingriddist = grid.GridSize * Math.Sqrt(mingriddistsq);
+
+                                if (mingriddist < voxeldist)
+                                {
+                                    voxeldist = mingriddist;
+                                }
+                            }
+                            else
+                            {
+                                voxeldist = Math.Sqrt(distsq);
+                            }
+                        }
+                    }
+
                     voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double>(voxelCreate, voxeldist));
                 }
             }
