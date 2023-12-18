@@ -257,6 +257,8 @@ namespace SERingAsteroids
                     var radius = Math.Sqrt(radius_sq);
                     var sectorRadius = (int)Math.Floor(radius / _sectorSize + 0.5);
                     var longitude = Math.Floor(Math.Atan2(ringLocalPosition.Z, ringLocalPosition.X) * sectorRadius * 3 / Math.PI - 0.5);
+                    if (longitude < 0)
+                        longitude += sectorRadius * 6;
                     ringSector = new Vector2I((int)longitude, sectorRadius);
                 }
 
@@ -644,11 +646,11 @@ namespace SERingAsteroids
 
                             if (delta.X < 0)
                             {
-                                delta.X += delta.Y * 3;
+                                delta.X += delta.Y * 6;
                             }
-                            else if (delta.X >= delta.Y * 3)
+                            else if (delta.X >= delta.Y * 6)
                             {
-                                delta.X -= delta.Y * 3;
+                                delta.X -= delta.Y * 6;
                             }
 
                             sectorsToProcess.Add(delta);

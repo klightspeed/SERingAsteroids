@@ -132,3 +132,6 @@ the mod storage directory.
 * Add the ability to define and enable rings using chat commands.
 * Add the ability to boost the chance of ice asteroids from the default 1% (probably using a GeneratorSeed based on the number of material kinds)
   - Note that adding or removing a mod that changes the ores that can appear in asteroids would make this an ice asteroid debuff for already-generated asteroids
+* Allow edge taper to span more than one ring sector
+* Queue up asteroid creation in order of distance from nearest grid or player
+* Include grids and players in asteroid exclusion zones
