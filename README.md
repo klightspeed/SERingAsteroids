@@ -135,3 +135,6 @@ the mod storage directory.
 * Allow edge taper to span more than one ring sector
 * Queue up asteroid creation in order of distance from nearest grid or player
 * Include grids and players in asteroid exclusion zones
+* Limit asteroid addition to visual range
+* Remove unmodified asteroids once outside visual range (and cache the creation parameters for re-addition once within visual range again)
+* Mark unmodified asteroids outside a certain range of any player or grid as no save
