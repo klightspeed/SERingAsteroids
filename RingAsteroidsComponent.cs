@@ -59,7 +59,7 @@ namespace SERingAsteroids
         private readonly Dictionary<Vector2I, HashSet<long>> _ringSectorVoxelMaps = new Dictionary<Vector2I, HashSet<long>>();
         private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
-        private readonly Dictionary<Vector2I, List<ProceduralVoxelDetails>> _voxelCreationDetails = new Dictionary<Vector2I, List<ProceduralVoxelDetails>>();
+        private readonly Dictionary<Vector2I, Dictionary<string, ProceduralVoxelDetails>> _voxelCreationDetails = new Dictionary<Vector2I, Dictionary<string, ProceduralVoxelDetails>>();
         private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
         private readonly HashSet<Vector2I> _ringSectorsCompleted = new HashSet<Vector2I>();
         private Queue<ProceduralVoxelDetails> _addVoxelsByDistance = new Queue<ProceduralVoxelDetails>();
@@ -475,14 +475,14 @@ namespace SERingAsteroids
 
             int tries = 0;
 
-            List<ProceduralVoxelDetails> pendingVoxels;
+            Dictionary<string, ProceduralVoxelDetails> sectorVoxels;
 
-            if (!_voxelCreationDetails.TryGetValue(sector, out pendingVoxels))
+            if (!_voxelCreationDetails.TryGetValue(sector, out sectorVoxels))
             {
-                _voxelCreationDetails[sector] = pendingVoxels = new List<ProceduralVoxelDetails>();
+                _voxelCreationDetails[sector] = sectorVoxels = new Dictionary<string, ProceduralVoxelDetails>();
             }
 
-            while (ids.Count + pendingVoxels.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2 && !SessionComponent.Unloading && !_reloadRequired)
+            while (sectorVoxels.Count < maxAsteroids && tries < maxAsteroidsPerSector * 2 && !SessionComponent.Unloading && !_reloadRequired)
             {
                 var relrad = random.NextDouble();
 
@@ -523,53 +523,6 @@ namespace SERingAsteroids
 
                 IMyVoxelBase existing;
 
-                if (!_voxelMapsByName.TryGetValue(name, out existing) || existing.Closed)
-                {
-                    LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({ids.Count} / {tries} / {maxAsteroids})");
-
-                    AddAsteroidToSector(sector, size, name, aseed, gseed, pos, pendingVoxels);
-                }
-
-                tries++;
-            }
-
-            if (!_reloadRequired)
-            {
-                _ringSectorsCompleted.Add(sector);
-            }
-        }
-
-        private void AddAsteroidToSector(Vector2I sector, float size, string name, int aseed, int gseed, Vector3D pos, List<ProceduralVoxelDetails> pendingVoxels)
-        {
-            var overlapRadius = size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone);
-            var sphere = new BoundingSphereD(pos, overlapRadius);
-            var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
-
-            if (overlap != null && overlap.EntityId == _planet.EntityId)
-            {
-                overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - pos).LengthSquared() < Math.Pow(overlapRadius + e.WorldVolume.Radius, 2));
-            }
-
-            ProceduralVoxelDetails overlapPending = null;
-
-            if (overlap == null)
-            {
-                if (pendingVoxels.Count != 0)
-                {
-                    overlapPending = pendingVoxels.FirstOrDefault(e => Vector3D.DistanceSquared(e.Position, pos) < Math.Pow(e.Size / 2 + overlapRadius, 2));
-                }
-            }
-
-            if (overlap != null)
-            {
-                LogDebug($"Asteroid {name} at {pos} Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}] at {overlap.PositionComp.GetPosition()}");
-            }
-            else if (overlapPending != null)
-            {
-                LogDebug($"Asteroid {name} at {pos} Overlapped just added asteroid {overlapPending.Name} at {overlapPending.Position}");
-            }
-            else
-            {
                 var voxelDetails = new ProceduralVoxelDetails
                 {
                     Position = pos,
@@ -581,8 +534,69 @@ namespace SERingAsteroids
                     AddAction = CreateProceduralAsteroid
                 };
 
-                pendingVoxels.Add(voxelDetails);
+                if (!sectorVoxels.ContainsKey(name))
+                {
+                    if (!_voxelMapsByName.TryGetValue(name, out existing) || existing.Closed)
+                    {
+                        LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({ids.Count} / {tries} / {maxAsteroids})");
+
+                        if (CanAddAsteroidToSector(voxelDetails, sectorVoxels))
+                        {
+                            sectorVoxels[name] = voxelDetails;
+                        }
+                    }
+                    else
+                    {
+                        voxelDetails.VoxelMap = existing as IMyVoxelMap;
+                        voxelDetails.IsModified = existing is IMyVoxelMap;
+                        sectorVoxels[name] = voxelDetails;
+                    }
+                }
+
+                tries++;
             }
+
+            if (!_reloadRequired)
+            {
+                _ringSectorsCompleted.Add(sector);
+            }
+        }
+
+        private bool CanAddAsteroidToSector(ProceduralVoxelDetails voxelDetails, Dictionary<string, ProceduralVoxelDetails> sectorVoxels)
+        {
+            var overlapRadius = voxelDetails.Size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone);
+            var sphere = new BoundingSphereD(voxelDetails.Position, overlapRadius);
+            var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
+
+            if (overlap != null && overlap.EntityId == _planet.EntityId)
+            {
+                overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - voxelDetails.Position).LengthSquared() < Math.Pow(overlapRadius + e.WorldVolume.Radius, 2));
+            }
+
+            ProceduralVoxelDetails overlapPending = null;
+
+            if (overlap == null)
+            {
+                if (sectorVoxels.Count != 0)
+                {
+                    overlapPending = sectorVoxels.Values.FirstOrDefault(e => Vector3D.DistanceSquared(e.Position, voxelDetails.Position) < Math.Pow(e.Size / 2 + overlapRadius, 2));
+                }
+            }
+
+            if (overlap != null)
+            {
+                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}] at {overlap.PositionComp.GetPosition()}");
+            }
+            else if (overlapPending != null)
+            {
+                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped just added asteroid {overlapPending.Name} at {overlapPending.Position}");
+            }
+            else
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void GetSectorsToProcess(List<Vector2I> sectorsToProcess)
@@ -825,7 +839,7 @@ namespace SERingAsteroids
                     }
                 }
 
-                foreach (var voxelCreate in voxelCreates)
+                foreach (var voxelCreate in voxelCreates.Values)
                 {
                     var voxeldist = entities.Min(e => (_entityPositions[e.EntityId] - voxelCreate.Position).Length());
                     voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double>(voxelCreate, voxeldist));
