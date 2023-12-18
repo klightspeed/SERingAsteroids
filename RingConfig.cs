@@ -464,7 +464,7 @@ namespace SERingAsteroids
                 }
             }
 
-            if (ringConfig.PlanetRadius != null && planet.AverageRadius != ringConfig.PlanetRadius)
+            if (ringConfig.PlanetRadius != null && ringConfig.PlanetName != planet.StorageName && planet.AverageRadius != ringConfig.PlanetRadius)
             {
                 var sizemult = planet.AverageRadius / ringConfig.PlanetRadius.Value;
                 ringConfig.RingInnerRadius *= sizemult;
