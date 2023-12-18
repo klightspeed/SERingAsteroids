@@ -488,7 +488,9 @@ namespace SERingAsteroids
 
                 var name = $"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_{tries}_{aseed}";
 
-                if (!_voxelMapsByName.ContainsKey(name))
+                IMyVoxelBase existing;
+
+                if (!_voxelMapsByName.TryGetValue(name, out existing) || existing.Closed)
                 {
                     LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({ids.Count} / {tries} / {maxAsteroids})");
 
@@ -777,6 +779,8 @@ namespace SERingAsteroids
                         {
                             ids.Remove(voxelmap.EntityId);
                         }
+
+                        _ringSectorsCompleted.Remove(sector);
                     }
 
                     _voxelMaps.Remove(voxelmap.EntityId);
