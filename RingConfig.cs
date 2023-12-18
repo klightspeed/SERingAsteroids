@@ -471,6 +471,7 @@ namespace SERingAsteroids
                 ringConfig.RingOuterRadius *= sizemult;
                 ringConfig.RingHeight *= sizemult;
                 ringConfig.SectorSize *= sizemult;
+                ringConfig.PlanetRadius = planet.AverageRadius;
 
                 if (ringConfig.RingZones != null)
                 {
@@ -493,7 +494,6 @@ namespace SERingAsteroids
                 exampleConfig.Enabled = exampleConfig.Enabled ?? false;
                 exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
                 exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
-                exampleConfig.PlanetRadius = planet.AverageRadius;
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
