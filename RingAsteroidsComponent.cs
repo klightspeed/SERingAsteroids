@@ -51,11 +51,13 @@ namespace SERingAsteroids
         private readonly Queue<string> loglines = new Queue<string>();
         private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
         private readonly Dictionary<long, IMyVoxelBase> _voxelMaps = new Dictionary<long, IMyVoxelBase>();
+        private readonly Dictionary<string, IMyVoxelBase> _voxelMapsByName = new Dictionary<string, IMyVoxelBase>();
         private readonly Dictionary<long, Vector2I> _voxelMapSectors = new Dictionary<long, Vector2I>();
         private readonly Dictionary<Vector2I, HashSet<long>> _ringSectorVoxelMaps = new Dictionary<Vector2I, HashSet<long>>();
         private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
         private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
+        private readonly HashSet<Vector2I> _ringSectorsCompleted = new HashSet<Vector2I>();
 
         private readonly object _loggerLock = new object();
 
@@ -242,21 +244,23 @@ namespace SERingAsteroids
             Vector2I ringSector = default(Vector2I);
 
             var radius_sq = ringXZPosition.LengthSquared();
-            var innerRad = _ringInnerRadius - _sectorSize * 2;
-            var outerRad = _ringOuterRadius + _sectorSize * 2;
-            var ringHeight = _ringHeight + _sectorSize * 2;
+            var innerRad = _ringInnerRadius - 75000;
+            var outerRad = _ringOuterRadius + 75000;
+            var ringHeight = _ringHeight + 75000;
 
             if (radius_sq > innerRad * innerRad)
             {
                 var planetLon = Math.Atan2(planetLocalPosition.Z, planetLocalPosition.X) * 180 / Math.PI;
                 var planetLat = Math.Atan(planetLocalPosition.Y / Math.Sqrt(planetLocalPosition.X * planetLocalPosition.X + planetLocalPosition.Z * planetLocalPosition.Z)) * 180 / Math.PI;
                 var ringLon = Math.Atan2(ringLocalPosition.Z, ringLocalPosition.X) * 180 / Math.PI;
+                if (ringLon < 0)
+                    ringLon += 360;
 
                 if (radius_sq >= innerRad * innerRad && radius_sq <= outerRad * outerRad && Math.Abs(ringLocalPosition.Y) < ringHeight)
                 {
                     var radius = Math.Sqrt(radius_sq);
-                    var sectorRadius = (int)Math.Floor(radius / _sectorSize + 0.5);
-                    var longitude = Math.Floor(Math.Atan2(ringLocalPosition.Z, ringLocalPosition.X) * sectorRadius * 3 / Math.PI - 0.5);
+                    var sectorRadius = (int)Math.Floor(radius / _sectorSize);
+                    var longitude = Math.Floor(Math.Atan2(ringLocalPosition.Z, ringLocalPosition.X) * sectorRadius * 3 / Math.PI + 0.5);
                     if (longitude < 0)
                         longitude += sectorRadius * 6;
                     ringSector = new Vector2I((int)longitude, sectorRadius);
@@ -264,9 +268,9 @@ namespace SERingAsteroids
 
                 LogDebug(
                     $"{friendlyName} " +
-                    $"at X:{position.X:N3} Y:{position.Y:N3} Z:{position.Z:N3} " +
-                    $"ring X:{ringLocalPosition.X:N3} Y:{ringLocalPosition.Y:N3} Z:{ringLocalPosition.Z:N3} " +
-                    $"lon {ringLon:N3} h {ringLocalPosition.Y:N3} rad {Math.Sqrt(radius_sq):N3} " +
+                    $"at X:{position.X:F3} Y:{position.Y:F3} Z:{position.Z:F3} " +
+                    $"ring X:{ringLocalPosition.X:F3} Y:{ringLocalPosition.Y:F3} Z:{ringLocalPosition.Z:F3} " +
+                    $"rad {(Math.Sqrt(radius_sq) / _sectorSize):F3} phi {ringLon:F3} h {ringLocalPosition.Y:F3} " +
                     $"sector {ringSector}");
             }
 
@@ -362,6 +366,8 @@ namespace SERingAsteroids
 
         private void AddAsteroidsToSector(Vector2I sector)
         {
+            LogDebug($"Processing sector {sector}");
+
             int seed;
 
             if (!_ringSectorSeeds.TryGetValue(sector, out seed))
@@ -482,98 +488,19 @@ namespace SERingAsteroids
 
                 var name = $"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_{tries}_{aseed}";
 
-                LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:N3} phi:{phi:N3} h:{y:N3} X:{pos.X:N3} Y:{pos.Y:N3} Z:{pos.Z:N3} ({ids.Count} / {tries} / {maxAsteroids})");
-
-                var overlapRadius = size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone);
-                var sphere = new BoundingSphereD(pos, overlapRadius);
-                var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
-
-                if (overlap != null && overlap.EntityId == _planet.EntityId)
+                if (!_voxelMapsByName.ContainsKey(name))
                 {
-                    overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - pos).LengthSquared() < Math.Pow(overlapRadius + e.WorldVolume.Radius, 2));
-                }
+                    LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({ids.Count} / {tries} / {maxAsteroids})");
 
-                AddVoxelDetails overlapPending = null;
-
-                if (overlap == null)
-                {
-                    if (pendingVoxels.Count != 0)
-                    {
-                        overlapPending = pendingVoxels.FirstOrDefault(e => Vector3D.DistanceSquared(e.Position, pos) < Math.Pow(e.Size / 2 + overlapRadius, 2));
-                    }
-                }
-
-                if (overlap != null)
-                {
-                    LogDebug($"Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}]");
-
-                    if (!ids.Contains(overlap.EntityId))
-                    {
-                        var overlap_sector = GetRingSectorForPosition(overlap.PositionComp.GetPosition(), $"{overlap.EntityId} [{overlap.StorageName}]");
-
-                        if (overlap_sector == sector)
-                        {
-                            ids.Add(overlap.EntityId);
-                        }
-                    }
-                }
-                else if (overlapPending != null)
-                {
-                    LogDebug($"Overlapped just added asteroid {overlapPending.Name}");
-                }
-                else
-                {
-                    var voxelDetails = new AddVoxelDetails
-                    {
-                        Position = pos,
-                        Name = name,
-                        Seed = aseed,
-                        Size = size,
-                        GeneratorSeed = gseed,
-                        VoxelGeneratorVersion = _voxelGeneratorVersion,
-                        AddAction = CreateProceduralAsteroid
-                    };
-
-                    pendingVoxels.Add(voxelDetails);
-                    SessionComponent.EnqueueVoxelAdd(voxelDetails);
-
-                    while (!SessionComponent.Unloading)
-                    {
-                        var completed = pendingVoxels.Where(e => e.VoxelMap != null).ToList();
-
-                        var exception = pendingVoxels.FirstOrDefault(e => e.Exception != null)?.Exception;
-
-                        if (exception != null)
-                        {
-                            Log($"Error creating asteroid: {exception}");
-                            Log("Ring asteroids disabled for this planet");
-                            NeedsUpdate = MyEntityUpdateEnum.NONE;
-                            return;
-                        }
-
-                        foreach (var details in completed)
-                        {
-                            var voxel = details.VoxelMap;
-
-                            _voxelMaps[voxel.EntityId] = voxel;
-
-                            _voxelMapSectors[voxel.EntityId] = sector;
-
-                            ids.Add(voxel.EntityId);
-
-                            pendingVoxels.Remove(details);
-                        }
-
-                        if (pendingVoxels.Count < 5)
-                        {
-                            break;
-                        }
-
-                        MyAPIGateway.Parallel.Sleep(1);
-                    }
+                    AddAsteroidToSector(sector, size, name, aseed, gseed, pos, pendingVoxels, ids);
                 }
 
                 tries++;
+            }
+
+            if (!_reloadRequired)
+            {
+                _ringSectorsCompleted.Add(sector);
             }
 
             if (SessionComponent.Unloading)
@@ -614,6 +541,98 @@ namespace SERingAsteroids
                 }
 
                 MyAPIGateway.Parallel.Sleep(1);
+            }
+        }
+
+        private void AddAsteroidToSector(Vector2I sector, float size, string name, int aseed, int gseed, Vector3D pos, List<AddVoxelDetails> pendingVoxels, HashSet<long> ids)
+        {
+            var overlapRadius = size * Math.Max(1.0, _exclusionZoneMult) / 2 + Math.Max(0, _exclusionZone);
+            var sphere = new BoundingSphereD(pos, overlapRadius);
+            var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
+
+            if (overlap != null && overlap.EntityId == _planet.EntityId)
+            {
+                overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - pos).LengthSquared() < Math.Pow(overlapRadius + e.WorldVolume.Radius, 2));
+            }
+
+            AddVoxelDetails overlapPending = null;
+
+            if (overlap == null)
+            {
+                if (pendingVoxels.Count != 0)
+                {
+                    overlapPending = pendingVoxels.FirstOrDefault(e => Vector3D.DistanceSquared(e.Position, pos) < Math.Pow(e.Size / 2 + overlapRadius, 2));
+                }
+            }
+
+            if (overlap != null)
+            {
+                LogDebug($"Asteroid {name} at {pos} Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}] at {overlap.PositionComp.GetPosition()}");
+
+                if (!ids.Contains(overlap.EntityId))
+                {
+                    var overlap_sector = GetRingSectorForPosition(overlap.PositionComp.GetPosition(), $"{overlap.EntityId} [{overlap.StorageName}]");
+
+                    if (overlap_sector == sector)
+                    {
+                        ids.Add(overlap.EntityId);
+                    }
+                }
+            }
+            else if (overlapPending != null)
+            {
+                LogDebug($"Asteroid {name} at {pos} Overlapped just added asteroid {overlapPending.Name} at {overlapPending.Position}");
+            }
+            else
+            {
+                var voxelDetails = new AddVoxelDetails
+                {
+                    Position = pos,
+                    Name = name,
+                    Seed = aseed,
+                    Size = size,
+                    GeneratorSeed = gseed,
+                    VoxelGeneratorVersion = _voxelGeneratorVersion,
+                    AddAction = CreateProceduralAsteroid
+                };
+
+                pendingVoxels.Add(voxelDetails);
+                SessionComponent.EnqueueVoxelAdd(voxelDetails);
+
+                while (!SessionComponent.Unloading)
+                {
+                    var completed = pendingVoxels.Where(e => e.VoxelMap != null).ToList();
+
+                    var exception = pendingVoxels.FirstOrDefault(e => e.Exception != null)?.Exception;
+
+                    if (exception != null)
+                    {
+                        Log($"Error creating asteroid: {exception}");
+                        Log("Ring asteroids disabled for this planet");
+                        NeedsUpdate = MyEntityUpdateEnum.NONE;
+                        return;
+                    }
+
+                    foreach (var details in completed)
+                    {
+                        var voxel = details.VoxelMap;
+
+                        _voxelMaps[voxel.EntityId] = voxel;
+
+                        _voxelMapSectors[voxel.EntityId] = sector;
+
+                        ids.Add(voxel.EntityId);
+
+                        pendingVoxels.Remove(details);
+                    }
+
+                    if (pendingVoxels.Count < 5)
+                    {
+                        break;
+                    }
+
+                    MyAPIGateway.Parallel.Sleep(1);
+                }
             }
         }
 
@@ -689,7 +708,7 @@ namespace SERingAsteroids
 
                     HashSet<long> ids;
 
-                    if (!_ringSectorsToProcess.Contains(sector) || !_ringSectorVoxelMaps.TryGetValue(sector, out ids) || ids.Count < maxAsteroids)
+                    if (!_ringSectorsCompleted.Contains(sector) && (!_ringSectorsToProcess.Contains(sector) || !_ringSectorVoxelMaps.TryGetValue(sector, out ids) || ids.Count < maxAsteroids))
                     {
                         _ringSectorsToProcess.Add(sector);
                     }
@@ -709,6 +728,7 @@ namespace SERingAsteroids
                 {
                     addVoxel = true;
                     _voxelMaps[entity.EntityId] = entity;
+                    _voxelMapsByName[entity.StorageName] = entity;
                 }
 
                 if (addVoxel)
@@ -718,7 +738,7 @@ namespace SERingAsteroids
 
                     _voxelMapSectors[entity.EntityId] = sector;
 
-                    if (sector != default(Vector2I))
+                    if (sector != default(Vector2I) && entity.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_"))
                     {
                         HashSet<long> ids;
 
