@@ -60,7 +60,6 @@ namespace SERingAsteroids
         private readonly Dictionary<Vector2I, int> _ringSectorSeeds = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, Dictionary<string, ProceduralVoxelDetails>> _voxelCreationDetails = new Dictionary<Vector2I, Dictionary<string, ProceduralVoxelDetails>>();
-        private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
         private readonly HashSet<Vector2I> _ringSectorsCompleted = new HashSet<Vector2I>();
         private Queue<ProceduralVoxelDetails> _addVoxelsByDistance = new Queue<ProceduralVoxelDetails>();
         private List<MyTuple<ProceduralVoxelDetails, double, double>> _voxelsByDistance = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
@@ -307,22 +306,14 @@ namespace SERingAsteroids
 
                     Dictionary<Vector2I, List<IMyEntity>> entitySectors;
                     var sectorsToProcess = GetEntityMovements(entities, out entitySectors);
-                    GetSectorsToProcess(sectorsToProcess);
+                    sectorsToProcess = GetSectorsToProcess(sectorsToProcess);
 
-                    bool sectorProcessed = false;
-
-                    if (_ringSectorsToProcess.Count != 0)
+                    foreach (var sector in sectorsToProcess)
                     {
-                        var sector = _ringSectorsToProcess.First();
-                        _ringSectorsToProcess.Remove(sector);
                         AddAsteroidsToSector(sector);
-                        sectorProcessed = true;
                     }
 
-                    if (sectorsToProcess.Count != 0 || sectorProcessed)
-                    {
-                        OrderPendingAsteroidsByDistance(entitySectors);
-                    }
+                    OrderPendingAsteroidsByDistance(entitySectors);
 
                     ProceduralVoxelDetails voxelDetails;
 
@@ -616,9 +607,10 @@ namespace SERingAsteroids
             return false;
         }
 
-        private void GetSectorsToProcess(List<Vector2I> sectorsToProcess)
+        private List<Vector2I> GetSectorsToProcess(List<Vector2I> sectorsToProcess)
         {
             var entitySectors = sectorsToProcess.ToList();
+            var retSectors = new HashSet<Vector2I>();
 
             for (int i = 1; i < 8; i++)
             {
@@ -688,12 +680,14 @@ namespace SERingAsteroids
 
                     HashSet<long> ids;
 
-                    if (!_ringSectorsCompleted.Contains(sector) && (!_ringSectorsToProcess.Contains(sector) || !_ringSectorVoxelMaps.TryGetValue(sector, out ids) || ids.Count < maxAsteroids))
+                    if (!_ringSectorsCompleted.Contains(sector) && (!retSectors.Contains(sector) || !_ringSectorVoxelMaps.TryGetValue(sector, out ids) || ids.Count < maxAsteroids))
                     {
-                        _ringSectorsToProcess.Add(sector);
+                        retSectors.Add(sector);
                     }
                 }
             }
+
+            return retSectors.ToList();
         }
 
         private void GetVoxelMaps()
