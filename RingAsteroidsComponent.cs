@@ -63,7 +63,7 @@ namespace SERingAsteroids
         private readonly HashSet<Vector2I> _ringSectorsToProcess = new HashSet<Vector2I>();
         private readonly HashSet<Vector2I> _ringSectorsCompleted = new HashSet<Vector2I>();
         private Queue<ProceduralVoxelDetails> _addVoxelsByDistance = new Queue<ProceduralVoxelDetails>();
-        private List<MyTuple<ProceduralVoxelDetails, double>> _voxelsByDistance = new List<MyTuple<ProceduralVoxelDetails, double>>();
+        private List<MyTuple<ProceduralVoxelDetails, double, double>> _voxelsByDistance = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
         private Queue<ProceduralVoxelDetails> _delVoxelsByDistance = new Queue<ProceduralVoxelDetails>();
 
         private readonly object _loggerLock = new object();
@@ -811,7 +811,38 @@ namespace SERingAsteroids
 
         private void OrderPendingAsteroidsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors)
         {
-            var voxelDistances = new List<MyTuple<ProceduralVoxelDetails, double>>();
+            var voxelDistances = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
+            var players = new List<IMyPlayer>();
+            var playerControlledEntities = new HashSet<long>();
+            MyAPIGateway.Players.GetPlayers(players);
+
+            foreach (var player in players)
+            {
+                if (!player.IsBot)
+                {
+                    if (player.Character != null)
+                    {
+                        var entity = (IMyEntity)player.Character;
+
+                        while (entity != null)
+                        {
+                            playerControlledEntities.Add(entity.EntityId);
+                            entity = entity.Parent;
+                        }
+                    }
+
+                    if (player.Controller?.ControlledEntity?.Entity != null)
+                    {
+                        var entity = player.Controller.ControlledEntity.Entity;
+
+                        while (entity != null)
+                        {
+                            playerControlledEntities.Add(entity.EntityId);
+                            entity = entity.Parent;
+                        }
+                    }
+                }
+            }
 
             foreach (var kvp in _voxelCreationDetails)
             {
@@ -859,11 +890,10 @@ namespace SERingAsteroids
                 foreach (var voxelCreate in voxelCreates.Values)
                 {
                     var voxeldist = double.MaxValue;
+                    var voxeldistfromplayer = double.MaxValue;
 
                     foreach (var entity in entities)
                     {
-                        var distsq = (_entityPositions[entity.EntityId] - voxelCreate.Position).LengthSquared();
-
                         if (entity is IMyCubeGrid && !entity.Closed)
                         {
                             var grid = (IMyCubeGrid)entity;
@@ -871,18 +901,14 @@ namespace SERingAsteroids
                             var maxpos = grid.Max;
                             var minpos = grid.Min;
                             var nearestcorner = Vector3I.Clamp(gridpos, grid.Min, grid.Max);
-                            distsq = (grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position).LengthSquared();
-                        }
+                            var distsq = (grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position).LengthSquared();
 
-                        if (distsq < voxeldist * voxeldist)
-                        {
-                            if (entity is IMyCubeGrid)
+                            if (distsq < voxeldist * voxeldist || (distsq < voxeldistfromplayer * voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId)))
                             {
-                                var grid = (IMyCubeGrid)entity;
-                                var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
                                 var blocks = new List<IMySlimBlock>();
                                 grid.GetBlocks(blocks);
                                 var mingriddistsq = long.MaxValue;
+                                var mingriddistfromplayersq = long.MaxValue;
 
                                 foreach (var block in blocks)
                                 {
@@ -893,23 +919,44 @@ namespace SERingAsteroids
                                     {
                                         mingriddistsq = vecdistsq;
                                     }
+
+                                    if (block.FatBlock != null && playerControlledEntities.Contains(block.FatBlock.EntityId) && vecdistsq < mingriddistfromplayersq)
+                                    {
+                                        mingriddistfromplayersq = vecdistsq;
+                                    }
                                 }
 
                                 var mingriddist = grid.GridSize * Math.Sqrt(mingriddistsq);
+                                var mingriddistfromplayer = grid.GridSize * Math.Sqrt(mingriddistfromplayersq);
 
                                 if (mingriddist < voxeldist)
                                 {
                                     voxeldist = mingriddist;
                                 }
+
+                                if (mingriddistfromplayer < voxeldistfromplayer)
+                                {
+                                    voxeldistfromplayer = mingriddistfromplayer;
+                                }
                             }
-                            else
+                        }
+                        else
+                        {
+                            var distsq = (_entityPositions[entity.EntityId] - voxelCreate.Position).LengthSquared();
+
+                            if (distsq < voxeldist * voxeldist)
                             {
                                 voxeldist = Math.Sqrt(distsq);
+                            }
+
+                            if (playerControlledEntities.Contains(entity.EntityId) && distsq < voxeldistfromplayer * voxeldistfromplayer)
+                            {
+                                voxeldistfromplayer = Math.Sqrt(distsq);
                             }
                         }
                     }
 
-                    voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double>(voxelCreate, voxeldist - voxelCreate.Size));
+                    voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double, double>(voxelCreate, voxeldist - voxelCreate.Size, voxeldistfromplayer - voxelCreate.Size));
                 }
             }
 
@@ -923,46 +970,50 @@ namespace SERingAsteroids
 
             foreach (var tuple in _voxelsByDistance)
             {
-                if ((tuple.Item1.VoxelMap == null || tuple.Item1.VoxelMap.Closed) && tuple.Item2 < visdist * 1.2 && !tuple.Item1.AddPending && !tuple.Item1.IsInhibited)
+                var voxelDetails = tuple.Item1;
+                var distFromEntity = tuple.Item2;
+                var distFromPlayer = tuple.Item3;
+
+                if ((voxelDetails.VoxelMap == null || voxelDetails.VoxelMap.Closed) && distFromEntity < visdist * 1.2 && !voxelDetails.AddPending && !voxelDetails.IsInhibited)
                 {
-                    if (tuple.Item2 <= 0)
+                    if (distFromEntity <= 0)
                     {
-                        tuple.Item1.IsInhibited = true;
+                        voxelDetails.IsInhibited = true;
                     }
-                    else
+                    else if (distFromEntity < syncdist * 1.2 || distFromPlayer < visdist * 1.2)
                     {
-                        tuple.Item1.IsModified = false;
-                        addVoxels.Enqueue(tuple.Item1);
+                        voxelDetails.IsModified = false;
+                        addVoxels.Enqueue(voxelDetails);
                     }
                 }
-                else if (tuple.Item1.VoxelMap != null && !tuple.Item1.VoxelMap.Closed && (!tuple.Item1.IsModified || !tuple.Item1.VoxelMap.Save) && !tuple.Item1.DeletePending)
+                else if (voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
                 {
-                    if (tuple.Item1.VoxelMap.Save && tuple.Item2 > syncdist * 1.5)
+                    if (voxelDetails.VoxelMap.Save && distFromEntity > syncdist * 1.5)
                     {
                         byte[] data;
-                        tuple.Item1.VoxelMap.Storage.Save(out data);
+                        voxelDetails.VoxelMap.Storage.Save(out data);
 
                         // If voxel has been modified, compressed data will be returned
                         if (data[0] == 0x1f)
                         {
-                            LogDebug($"Setting asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] IsModified=true (data[0]={data[0]:X2})");
-                            tuple.Item1.IsModified = true;
+                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] IsModified=true (data[0]={data[0]:X2})");
+                            voxelDetails.IsModified = true;
                         }
                         else
                         {
-                            LogDebug($"Setting asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] Save=false (Dist={tuple.Item2})");
-                            tuple.Item1.VoxelMap.Save = false;
+                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity})");
+                            voxelDetails.VoxelMap.Save = false;
                         }
                     }
-                    else if (tuple.Item2 > visdist * 1.5)
+                    else if (distFromEntity > syncdist * 1.5 && distFromPlayer > visdist * 1.5)
                     {
-                        LogDebug($"Queueing delete for asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] (Dist={tuple.Item2})");
-                        delVoxels.Push(tuple.Item1);
+                        LogDebug($"Queueing delete for asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Dist={distFromEntity})");
+                        delVoxels.Push(voxelDetails);
                     }
-                    else if (tuple.Item1.VoxelMap.Save == false && tuple.Item2 < syncdist * 1.2)
+                    else if (voxelDetails.VoxelMap.Save == false && distFromEntity < syncdist * 1.2)
                     {
-                        LogDebug($"Setting asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] Save=true (Dist={tuple.Item2})");
-                        tuple.Item1.VoxelMap.Save = true;
+                        LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity})");
+                        voxelDetails.VoxelMap.Save = true;
                     }
                 }
             }
