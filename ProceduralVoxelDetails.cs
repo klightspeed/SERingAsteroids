@@ -32,6 +32,8 @@ namespace SERingAsteroids
 
         public Func<int, float, int, Vector3D, string, int, IMyVoxelMap> AddAction { get; set; }
 
+        public Action<IMyVoxelMap> DeleteAction { get; set; }
+
         public void ExecuteAdd()
         {
             try
@@ -44,6 +46,11 @@ namespace SERingAsteroids
             }
 
             IsCompleted = true;
+        }
+
+        public void ExecuteDelete()
+        {
+            DeleteAction(VoxelMap);
         }
     }
 }

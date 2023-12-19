@@ -386,10 +386,17 @@ namespace SERingAsteroids
             }
 
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
+            voxelmap.Save = false;
 #endif
-            LogDebug($"Spawned asteroid {voxelmap.EntityId}");
+            LogDebug($"Spawned asteroid {voxelmap.EntityId} [{voxelmap.StorageName}]");
 
             return voxelmap;
+        }
+
+        private void DeleteAsteroid(IMyVoxelMap voxelmap)
+        {
+            LogDebug($"Deleting asteroid {voxelmap.EntityId} [{voxelmap.StorageName}]");
+            voxelmap.Close();
         }
 
         private void AddAsteroidsToSector(Vector2I sector)
@@ -531,14 +538,15 @@ namespace SERingAsteroids
                     Size = size,
                     GeneratorSeed = gseed,
                     VoxelGeneratorVersion = _voxelGeneratorVersion,
-                    AddAction = CreateProceduralAsteroid
+                    AddAction = CreateProceduralAsteroid,
+                    DeleteAction = DeleteAsteroid
                 };
 
                 if (!sectorVoxels.ContainsKey(name))
                 {
                     if (!_voxelMapsByName.TryGetValue(name, out existing) || existing.Closed)
                     {
-                        LogDebug($"Sector {sector}: Attempting to spawn {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({ids.Count} / {tries} / {maxAsteroids})");
+                        LogDebug($"Sector {sector}: Adding {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({sectorVoxels.Count} / {tries} / {maxAsteroids})");
 
                         if (CanAddAsteroidToSector(voxelDetails, sectorVoxels))
                         {
@@ -921,19 +929,23 @@ namespace SERingAsteroids
                         // If voxel has been modified, compressed data will be returned
                         if (data[0] == 0x1f)
                         {
+                            LogDebug($"Setting asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] IsModified=true (data[0]={data[0]:X2})");
                             tuple.Item1.IsModified = true;
                         }
                         else
                         {
+                            LogDebug($"Setting asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] Save=false (Dist={tuple.Item2})");
                             tuple.Item1.VoxelMap.Save = false;
                         }
                     }
                     else if (tuple.Item2 > visdist * 1.5)
                     {
+                        LogDebug($"Queueing delete for asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] (Dist={tuple.Item2})");
                         delVoxels.Push(tuple.Item1);
                     }
                     else if (tuple.Item1.VoxelMap.Save == false && tuple.Item2 < syncdist * 1.2)
                     {
+                        LogDebug($"Setting asteroid {tuple.Item1.VoxelMap.EntityId} [{tuple.Item1.VoxelMap.StorageName}] Save=true (Dist={tuple.Item2})");
                         tuple.Item1.VoxelMap.Save = true;
                     }
                 }

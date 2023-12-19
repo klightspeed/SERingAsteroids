@@ -362,7 +362,7 @@ namespace SERingAsteroids
                 {
                     if (voxelDetails.DeletePending && !voxelDetails.AddPending && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed)
                     {
-                        voxelDetails.VoxelMap.Close();
+                        voxelDetails.ExecuteDelete();
                     }
 
                     voxelDetails.AddPending = false;
