@@ -82,6 +82,9 @@ namespace SERingAsteroids
         [ProtoMember(23)]
         public double? PlanetRadius { get; set; }
 
+        [ProtoMember(24)]
+        public bool? IncludePlanetNameInRandomSeed { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 

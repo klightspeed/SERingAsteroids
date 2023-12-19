@@ -1,5 +1,4 @@
 ﻿using Sandbox.Definitions;
-using Sandbox.Engine.Voxels;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using System;
@@ -37,6 +36,7 @@ namespace SERingAsteroids
         private int _voxelGeneratorVersion;
         private bool _taperRingEdge;
         private bool _logDebug;
+        private bool _includeNameInSeed;
         private readonly List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
@@ -204,6 +204,7 @@ namespace SERingAsteroids
             _ringMatrix = config.GetRingMatrix();
             _voxelGeneratorVersion = config.VoxelGeneratorVersion ?? MyAPIGateway.Session.SessionSettings.VoxelGeneratorVersion;
             _logDebug = config.LogDebug ?? false;
+            _includeNameInSeed = config.IncludePlanetNameInRandomSeed ?? false;
 
             if (config.RingZones != null)
             {
@@ -407,7 +408,15 @@ namespace SERingAsteroids
 
             if (!_ringSectorSeeds.TryGetValue(sector, out seed))
             {
-                _ringSectorSeeds[sector] = seed = (int)MyHashRandomUtils.JenkinsHash((uint)sector.GetHashCode());
+                var hashcode = sector.GetHashCode();
+
+                if (_includeNameInSeed)
+                {
+                    hashcode = unchecked(-2018137331 * -1521134295) + hashcode;
+                    hashcode = hashcode * -1521134295 + _planet.StorageName.GetHashCode();
+                    hashcode = hashcode * -1521134295 + _planet.EntityId.GetHashCode();
+                }
+                _ringSectorSeeds[sector] = seed = (int)MyHashRandomUtils.JenkinsHash((uint)hashcode);
             }
 
             HashSet<long> ids;
