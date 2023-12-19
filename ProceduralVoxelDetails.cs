@@ -14,6 +14,8 @@ namespace SERingAsteroids
 
         public bool IsModified { get; set; }
 
+        public bool IsInhibited { get; set; }
+
         public Vector3D Position { get; set; }
 
         public float Size { get; set; }

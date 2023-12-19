@@ -923,10 +923,17 @@ namespace SERingAsteroids
 
             foreach (var tuple in _voxelsByDistance)
             {
-                if ((tuple.Item1.VoxelMap == null || tuple.Item1.VoxelMap.Closed) && tuple.Item2 > 0 && tuple.Item2 < visdist * 1.2 && !tuple.Item1.AddPending)
+                if ((tuple.Item1.VoxelMap == null || tuple.Item1.VoxelMap.Closed) && tuple.Item2 < visdist * 1.2 && !tuple.Item1.AddPending && !tuple.Item1.IsInhibited)
                 {
-                    tuple.Item1.IsModified = false;
-                    addVoxels.Enqueue(tuple.Item1);
+                    if (tuple.Item2 <= 0)
+                    {
+                        tuple.Item1.IsInhibited = true;
+                    }
+                    else
+                    {
+                        tuple.Item1.IsModified = false;
+                        addVoxels.Enqueue(tuple.Item1);
+                    }
                 }
                 else if (tuple.Item1.VoxelMap != null && !tuple.Item1.VoxelMap.Closed && (!tuple.Item1.IsModified || !tuple.Item1.VoxelMap.Save) && !tuple.Item1.DeletePending)
                 {
