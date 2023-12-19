@@ -814,15 +814,29 @@ namespace SERingAsteroids
                     if (jumpsystem?.IsJumping == true)
                     {
                         var jumpTarget = jumpsystem.GetJumpDriveTarget();
+                        var jumpdrive = grid.GetFatBlocks<IMyJumpDrive>().FirstOrDefault();
 
-                        if (jumpTarget != null)
+                        if (jumpTarget != null && jumpdrive != null)
                         {
-                            var sector = GetRingSectorForPosition(jumpTarget.Value, $"{entity.GetType().Name} {entity.EntityId} [{entity.DisplayName}] JumpTarget");
+                            Vector3D oldpos;
+                            Vector2I sector;
+
+                            if (!_entityPositions.TryGetValue(jumpdrive.EntityId, out oldpos) ||
+                                !_entitySectors.TryGetValue(jumpdrive.EntityId, out sector) ||
+                                oldpos != jumpTarget)
+                            {
+                                _entityPositions[jumpdrive.EntityId] = jumpTarget.Value;
+                                sector = GetRingSectorForPosition(jumpTarget.Value, $"{entity.GetType().Name} {entity.EntityId} [{entity.DisplayName}] JumpTarget");
+                                _entitySectors[jumpdrive.EntityId] = sector;
+
+                                if (sector != default(Vector2I) && sector != _entitySectors[entity.EntityId])
+                                {
+                                    sectorsToProcess.Add(sector);
+                                }
+                            }
 
                             if (sector != default(Vector2I) && sector != _entitySectors[entity.EntityId])
                             {
-                                sectorsToProcess.Add(sector);
-
                                 List<IMyEntity> sectorEntities;
 
                                 if (!entitySectors.TryGetValue(sector, out sectorEntities))
