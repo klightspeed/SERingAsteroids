@@ -892,7 +892,7 @@ namespace SERingAsteroids
                         }
                     }
 
-                    voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double>(voxelCreate, voxeldist));
+                    voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double>(voxelCreate, voxeldist - voxelCreate.Size));
                 }
             }
 
@@ -906,7 +906,7 @@ namespace SERingAsteroids
 
             foreach (var tuple in _voxelsByDistance)
             {
-                if ((tuple.Item1.VoxelMap == null || tuple.Item1.VoxelMap.Closed) && tuple.Item2 < visdist * 1.2 && !tuple.Item1.AddPending)
+                if ((tuple.Item1.VoxelMap == null || tuple.Item1.VoxelMap.Closed) && tuple.Item2 > 0 && tuple.Item2 < visdist * 1.2 && !tuple.Item1.AddPending)
                 {
                     tuple.Item1.IsModified = false;
                     addVoxels.Enqueue(tuple.Item1);
