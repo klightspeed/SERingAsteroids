@@ -436,6 +436,8 @@ namespace SERingAsteroids
                 }
             }
 
+            var ringHeight = _ringHeight;
+
             var zone = _ringZones.FirstOrDefault(e => sector.Y < e.OuterRadius && sector.Y + 1 > e.InnerRadius && e.OuterRadius > e.InnerRadius);
 
             if (zone != null)
@@ -443,6 +445,13 @@ namespace SERingAsteroids
                 maxAsteroidsPerSector = zone.MaxAsteroidsPerSector ?? maxAsteroidsPerSector;
                 minAsteroidSize = zone.MinAsteroidSize ?? minAsteroidSize;
                 maxAsteroidSize = zone.MaxAsteroidSize ?? maxAsteroidSize;
+
+                if (zone.MaxAsteroidsPerSector != null)
+                {
+                    var zoneInnerRingHeight = zone.InnerRingHeight ?? zone.RingHeight ?? innerRingHeight;
+                    var zoneOuterRingHeight = zone.OuterRingHeight ?? zone.RingHeight ?? outerRingHeight;
+                    ringHeight = (zoneInnerRingHeight + zoneOuterRingHeight) / 2;
+                }
 
                 if (zone.InnerRingHeight != null || zone.OuterRingHeight != null)
                 {
@@ -475,6 +484,15 @@ namespace SERingAsteroids
                     innerRingHeight = zone.RingHeight ?? innerRingHeight;
                     outerRingHeight = zone.RingHeight ?? outerRingHeight;
                 }
+            }
+
+            if (ringHeight == 0 || (innerRingHeight == 0 && outerRingHeight == 0))
+            {
+                maxAsteroidsPerSector = 0;
+            }
+            else
+            {
+                maxAsteroidsPerSector *= (int)Math.Floor((innerRingHeight + outerRingHeight) / 2 / ringHeight + 0.5);
             }
 
             var maxAsteroids = random.Next(maxAsteroidsPerSector / 2, maxAsteroidsPerSector);
