@@ -1000,16 +1000,21 @@ namespace SERingAsteroids
                         }
                         else
                         {
-                            var distsq = (_entityPositions[entity.EntityId] - voxelCreate.Position).LengthSquared();
+                            var dist = (_entityPositions[entity.EntityId] - voxelCreate.Position).Length();
 
-                            if (distsq < voxeldist * voxeldist)
+                            if (entity.LocalVolume.Radius > 0)
                             {
-                                voxeldist = Math.Sqrt(distsq);
+                                dist -= entity.LocalVolume.Radius;
                             }
 
-                            if (playerControlledEntities.Contains(entity.EntityId) && distsq < voxeldistfromplayer * voxeldistfromplayer)
+                            if (dist < voxeldist)
                             {
-                                voxeldistfromplayer = Math.Sqrt(distsq);
+                                voxeldist = dist;
+                            }
+
+                            if (playerControlledEntities.Contains(entity.EntityId) && dist < voxeldistfromplayer)
+                            {
+                                voxeldistfromplayer = dist;
                             }
                         }
                     }
