@@ -804,6 +804,37 @@ namespace SERingAsteroids
                         sectorEntities.Add(entity);
                     }
                 }
+
+
+                if (entity is IMyCubeGrid)
+                {
+                    var grid = (IMyCubeGrid)entity;
+                    var jumpsystem = grid.JumpSystem;
+
+                    if (jumpsystem?.IsJumping == true)
+                    {
+                        var jumpTarget = jumpsystem.GetJumpDriveTarget();
+
+                        if (jumpTarget != null)
+                        {
+                            var sector = GetRingSectorForPosition(jumpTarget.Value, $"{entity.GetType().Name} {entity.EntityId} [{entity.DisplayName}] JumpTarget");
+
+                            if (sector != default(Vector2I) && sector != _entitySectors[entity.EntityId])
+                            {
+                                sectorsToProcess.Add(sector);
+
+                                List<IMyEntity> sectorEntities;
+
+                                if (!entitySectors.TryGetValue(sector, out sectorEntities))
+                                {
+                                    entitySectors[sector] = sectorEntities = new List<IMyEntity>();
+                                }
+
+                                sectorEntities.Add(entity);
+                            }
+                        }
+                    }
+                }
             }
 
             return sectorsToProcess.ToList();
@@ -846,7 +877,7 @@ namespace SERingAsteroids
 
             foreach (var kvp in _voxelCreationDetails)
             {
-                var entities = new List<IMyEntity>();
+                var entities = new Dictionary<long, IMyEntity>();
                 var voxelCreates = kvp.Value; 
                 var sectorsByDistance = new List<MyTuple<Vector2I, double>>();
                 var sector = kvp.Key;
@@ -878,10 +909,11 @@ namespace SERingAsteroids
                         {
                             Vector3D pos = _entityPositions[entity.EntityId];
                             var dist = (pos - seccentre).Length();
+                            var jumping = entity is IMyCubeGrid && ((IMyCubeGrid)entity).JumpSystem?.IsJumping == true;
 
-                            if (dist < entityMinDist + _sectorSize * 3)
+                            if (dist < entityMinDist + _sectorSize * 3 || jumping)
                             {
-                                entities.Add(entity);
+                                entities[entity.EntityId] = entity;
                             }
                         }
                     }
@@ -892,7 +924,7 @@ namespace SERingAsteroids
                     var voxeldist = double.MaxValue;
                     var voxeldistfromplayer = double.MaxValue;
 
-                    foreach (var entity in entities)
+                    foreach (var entity in entities.Values)
                     {
                         if (entity is IMyCubeGrid && !entity.Closed)
                         {
@@ -937,6 +969,32 @@ namespace SERingAsteroids
                                 if (mingriddistfromplayer < voxeldistfromplayer)
                                 {
                                     voxeldistfromplayer = mingriddistfromplayer;
+                                }
+                            }
+
+                            if (grid.JumpSystem?.IsJumping == true)
+                            {
+                                var jumpTarget = grid.JumpSystem.GetJumpDriveTarget();
+
+                                if (jumpTarget != null)
+                                {
+                                    var dist = (jumpTarget.Value - voxelCreate.Position).Length();
+
+                                    // Don't inhibit spawn at jump target
+                                    if (dist < voxelCreate.Size * 1.2)
+                                    {
+                                        dist = voxelCreate.Size * 1.2;
+                                    }
+
+                                    if (dist < voxeldist)
+                                    {
+                                        voxeldist = dist;
+                                    }
+
+                                    if (dist < voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId))
+                                    {
+                                        voxeldistfromplayer = dist;
+                                    }
                                 }
                             }
                         }
