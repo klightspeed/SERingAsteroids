@@ -146,7 +146,7 @@ namespace SERingAsteroids.OctreeStorage
             var size = SizeOf<T>();
             val = default(T);
 
-            if (Position < Length + size) return false;
+            if (Position + size > Length) return false;
 
             val = readFunc(Buffer, Offset + Position);
             Position += size;
@@ -157,7 +157,7 @@ namespace SERingAsteroids.OctreeStorage
         {
             val = default(T);
 
-            if (Position < Length + size) return false;
+            if (Position + size > Length) return false;
 
             val = readFunc(Buffer, Offset + Position, size);
             Position += size;

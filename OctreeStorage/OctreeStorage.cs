@@ -17,9 +17,9 @@ namespace SERingAsteroids.OctreeStorage
 
         public DataProvider DataProvider { get; set; }
 
-        public MacroContentNodes MacroContentNodes { get; set; }
+        public MacroContentNodes MacroContentNodes { get; set; } = new MacroContentNodes();
 
-        public MacroMaterialNodes MacroMaterialNodes { get; set; }
+        public MacroMaterialNodes MacroMaterialNodes { get; set; } = new MacroMaterialNodes();
 
         public ContentLeaf[] ContentLeaves { get; set; } = Array.Empty<ContentLeaf>();
 
@@ -155,6 +155,12 @@ namespace SERingAsteroids.OctreeStorage
                 ret = MaterialLeafProvider.TryRead(buffer, version, out leaf);
                 chunk = leaf;
             }
+            else if (type == OctreeStorageChunkType.EndOfFile)
+            {
+                EOF eof;
+                ret = EOF.TryRead(buffer, version, out eof);
+                chunk = eof;
+            }
             else
             {
                 chunk = null;
@@ -205,19 +211,32 @@ namespace SERingAsteroids.OctreeStorage
             return TryRead(chunkbuffer, type, origsize, version, fileVersion, accessGridLod, out chunk);
         }
 
-        public static bool TryRead(ByteArrayBuffer buffer, out OctreeStorage storage)
+        public static bool TryRead(ByteArrayBuffer buffer, out OctreeStorage storage, Action<string> logAction = null)
         {
             storage = null;
 
             string filetype;
-            uint version;
+            byte version;
 
-            if (!buffer.TryRead(out filetype) || filetype != "Octree") return false;
-            if (!buffer.TryRead(out version) || version < 1 || version > 2) return false;
+            if (!buffer.TryRead(out filetype) || filetype != "Octree")
+            {
+                logAction?.Invoke($"Not an Octree file at {buffer.Position}");
+                return false;
+            }
+
+            if (!buffer.TryRead(out version) || version < 1 || version > 2)
+            {
+                logAction?.Invoke($"Unsupported version {version} at {buffer.Position}");
+                return false;
+            }
 
             ushort accessGridLod = 10;
 
-            if (version == 2 && !buffer.TryRead(out accessGridLod)) return false;
+            if (version == 2 && !buffer.TryRead(out accessGridLod))
+            {
+                logAction?.Invoke($"Cannot read AccessGridLOD at {buffer.Position}");
+                return false;
+            }
 
             MetaData metaData = null;
             MaterialIndexTable materialIndexTable = null;
@@ -231,6 +250,8 @@ namespace SERingAsteroids.OctreeStorage
 
             while (TryRead(buffer, version, accessGridLod, out chunk))
             {
+                logAction?.Invoke($"{chunk?.Type}");
+
                 if (chunk is MetaData) metaData = (MetaData)chunk;
                 else if (chunk is MaterialIndexTable) materialIndexTable = (MaterialIndexTable)chunk;
                 else if (chunk is DataProvider) provider = (DataProvider)chunk;
@@ -245,18 +266,58 @@ namespace SERingAsteroids.OctreeStorage
                 }
                 else if (chunk == null)
                 {
+                    logAction?.Invoke($"Chunk is null at {buffer.Position}");
                     return false;
                 }
             }
 
-            if (metaData == null) return false;
-            if (materialIndexTable == null) return false;
-            if (provider == null) return false;
-            if (macroContentNodes == null) return false;
-            if (macroMaterialNodes == null) return false;
-            if (contentLeaves.Count == 0) return false;
-            if (materialLeaves.Count == 0) return false;
-            if (eof == null) return false;
+            if (metaData == null)
+            {
+                logAction?.Invoke("No metadata");
+                return false;
+            }
+
+            if (materialIndexTable == null)
+            {
+                logAction?.Invoke("No material index table");
+                return false;
+            }
+
+            if (provider == null)
+            {
+                logAction?.Invoke("No provider");
+                return false;
+            }
+
+            if (macroContentNodes == null)
+            {
+                logAction?.Invoke("No macro content nodes");
+                return false;
+            }
+
+            if (macroMaterialNodes == null)
+            {
+                logAction?.Invoke("No macro material nodes");
+                return false;
+            }
+
+            if (contentLeaves.Count == 0)
+            {
+                logAction?.Invoke("No content leaves");
+                return false;
+            }
+
+            if (materialLeaves.Count == 0)
+            {
+                logAction?.Invoke("No material leaves");
+                return false;
+            }
+
+            if (eof == null)
+            {
+                logAction?.Invoke("No eof");
+                return false;
+            }
 
             storage = new OctreeStorage
             {
@@ -271,10 +332,9 @@ namespace SERingAsteroids.OctreeStorage
             };
 
             return true;
-
         }
 
-        public static OctreeStorage ReadFrom(byte[] data, Func<byte[], byte[]> decompress = null)
+        public static OctreeStorage ReadFrom(byte[] data, Func<byte[], byte[]> decompress = null, Action<string> logAction = null)
         {
             var buffer = new ByteArrayBuffer(data);
             string filetype;
@@ -282,13 +342,15 @@ namespace SERingAsteroids.OctreeStorage
 
             if (data[0] != "Octree".Length || !buffer.TryRead(out filetype) || filetype != "Octree")
             {
+                logAction?.Invoke($"data[0]={data[0]}");
+
                 byte[] uncompressed;
 
                 try
                 {
                     uncompressed = decompress(data);
                 }
-                catch
+                catch (Exception ex)
                 {
                     return null;
                 }
@@ -296,7 +358,7 @@ namespace SERingAsteroids.OctreeStorage
                 buffer = new ByteArrayBuffer(uncompressed);
             }
 
-            return TryRead(buffer, out storage) ? storage : null;
+            return TryRead(buffer, out storage, logAction) ? storage : null;
         }
 
         private static readonly string[] DefaultMaterials = new string[]

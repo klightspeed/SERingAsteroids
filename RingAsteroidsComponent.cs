@@ -1,6 +1,7 @@
 ﻿using Sandbox.Definitions;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
+using SERingAsteroids.OctreeStorage;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1089,6 +1090,15 @@ namespace SERingAsteroids
                         var modified = data[0] != 0x06;
                         var uncompressedLen = BitConverter.ToInt32(data, data.Length - 4);
 
+                        if (modified)
+                        {
+                            if (data.Length >= 2048) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Filesize={data.Length})");
+                            if (uncompressedLen < data.Length) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (UncompressedLength={uncompressedLen} Filesize={data.Length})");
+                            if (uncompressedLen >= 4096) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (UncompressedLength={uncompressedLen} Filesize={data.Length})");
+                            if (data[0] != 0x1f) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (data[0]={data[0]})");
+                        }
+
+
                         // Asteroids with even the tiniest dent are almost always >2kB in size, while unmodified asteroids are usually <1kB in size
                         // Testing in an empty world, a 64x64x64 asteroid with a single 1x1x1 voxel hand addition was 701 bytes compressed or 1391 bytes uncompressed
                         // Meanwhile an unmodified asteroid generated using CreateProceduralVoxelMap in the Perdiso system was 889 bytes compressed or 1813 bytes uncompressed
@@ -1105,15 +1115,36 @@ namespace SERingAsteroids
                             try
                             {
                                 var cbuf = MyCompression.Decompress(buf);
-                                var storage = OctreeStorage.OctreeStorage.ReadFrom(cbuf);
-                                modified = storage.MacroContentNodes.Nodes.Length != 0
-                                        || storage.MacroMaterialNodes.Nodes.Length != 0
-                                        || storage.ContentLeaves.Length != 1
-                                        || storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider)
-                                        || storage.MaterialLeaves.Length != 1
-                                        || storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider);
+                                var buffer = new ByteArrayBuffer(cbuf);
+
+                                OctreeStorage.OctreeStorage storage;
+                                if (OctreeStorage.OctreeStorage.TryRead(buffer, out storage, s => LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}]: {s}")))
+                                {
+                                    if (storage.MacroContentNodes.Nodes.Length != 0)
+                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MacroContentNodes: {storage.MacroContentNodes.Nodes.Length})");
+                                    if (storage.MacroMaterialNodes.Nodes.Length != 0)
+                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MacroMaterialNodes: {storage.MacroMaterialNodes.Nodes.Length})");
+                                    if (storage.ContentLeaves.Length != 1)
+                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: {storage.ContentLeaves.Length})");
+                                    if (storage.MaterialLeaves.Length != 1)
+                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: {storage.MaterialLeaves.Length})");
+                                    if (storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider))
+                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: HasNonProvider)");
+                                    if (storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider))
+                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MaterialLeaves: HasNonProvider)");
+
+                                    modified = storage.MacroContentNodes.Nodes.Length != 0
+                                            || storage.MacroMaterialNodes.Nodes.Length != 0
+                                            || storage.ContentLeaves.Length != 1
+                                            || storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider)
+                                            || storage.MaterialLeaves.Length != 1
+                                            || storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider);
+                                }
                             }
-                            catch { }
+                            catch (Exception ex)
+                            {
+                                LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Exception: {ex})");
+                            }
                         }
 
                         if (modified)
