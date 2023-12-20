@@ -578,7 +578,6 @@ namespace SERingAsteroids
                     else
                     {
                         voxelDetails.VoxelMap = existing as IMyVoxelMap;
-                        voxelDetails.IsModified = existing is IMyVoxelMap;
                         sectorVoxels[name] = voxelDetails;
                     }
                 }
@@ -1087,9 +1086,39 @@ namespace SERingAsteroids
                         voxelDetails.VoxelMap.Storage.Save(out data);
 
                         // If voxel has been modified, compressed data will be returned
-                        if (data[0] == 0x1f)
+                        var modified = data[0] != 0x06;
+                        var uncompressedLen = BitConverter.ToInt32(data, data.Length - 4);
+
+                        // Asteroids with even the tiniest dent are almost always >2kB in size, while unmodified asteroids are usually <1kB in size
+                        // Testing in an empty world, a 64x64x64 asteroid with a single 1x1x1 voxel hand addition was 701 bytes compressed or 1391 bytes uncompressed
+                        // Meanwhile an unmodified asteroid generated using CreateProceduralVoxelMap in the Perdiso system was 889 bytes compressed or 1813 bytes uncompressed
+                        if (modified && data[0] == 0x1f && data.Length < 2048 && uncompressedLen > data.Length && uncompressedLen < 4096)
                         {
-                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] IsModified=true (data[0]={data[0]:X2})");
+                            var buf = new byte[data.Length + 4];
+
+                            // GZip files include the uncompressed length at the end of the buffer
+                            // MyCompression.Decompress expects this at the start of the buffer
+                            // Copy length from end of buffer to start of buffer
+                            Array.Copy(data, data.Length - 4, buf, 0, 4);
+                            Array.Copy(data, 0, buf, 4, data.Length);
+
+                            try
+                            {
+                                var cbuf = MyCompression.Decompress(buf);
+                                var storage = OctreeStorage.OctreeStorage.ReadFrom(cbuf);
+                                modified = storage.MacroContentNodes.Nodes.Length != 0
+                                        || storage.MacroMaterialNodes.Nodes.Length != 0
+                                        || storage.ContentLeaves.Length != 1
+                                        || storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider)
+                                        || storage.MaterialLeaves.Length != 1
+                                        || storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider);
+                            }
+                            catch { }
+                        }
+
+                        if (modified)
+                        {
+                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] IsModified=true (Filesize={data.Length})");
                             voxelDetails.IsModified = true;
                         }
                         else
