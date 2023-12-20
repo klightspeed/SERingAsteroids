@@ -85,6 +85,9 @@ namespace SERingAsteroids
         [ProtoMember(24)]
         public bool? IncludePlanetNameInRandomSeed { get; set; }
 
+        [ProtoMember(25)]
+        public bool? DisableAsteroidCleanup { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 
@@ -257,6 +260,8 @@ namespace SERingAsteroids
                 SectorSize = SectorSize,
                 Vanilla = Vanilla,
                 DebugDrawRingBounds = DebugDrawRingBounds,
+                IncludePlanetNameInRandomSeed = IncludePlanetNameInRandomSeed,
+                DisableAsteroidCleanup = DisableAsteroidCleanup,
             };
         }
 
@@ -461,6 +466,8 @@ namespace SERingAsteroids
                     ringConfig.LogDebug                   = ringConfig.LogDebug                   ?? config.LogDebug;
                     ringConfig.DebugDrawRingBounds        = ringConfig.DebugDrawRingBounds        ?? config.DebugDrawRingBounds;
                     ringConfig.PlanetRadius               = ringConfig.PlanetRadius               ?? config.PlanetRadius;
+                    ringConfig.IncludePlanetNameInRandomSeed = ringConfig.IncludePlanetNameInRandomSeed ?? config.IncludePlanetNameInRandomSeed;
+                    ringConfig.DisableAsteroidCleanup     = ringConfig.DisableAsteroidCleanup     ?? config.DisableAsteroidCleanup;
 
                     if (config.PlanetName != null)
                         ringConfig.Enabled                = ringConfig.Enabled                    ?? config.Enabled;
@@ -497,6 +504,8 @@ namespace SERingAsteroids
                 exampleConfig.Enabled = exampleConfig.Enabled ?? false;
                 exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
                 exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
+                exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
+                exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
@@ -781,7 +790,9 @@ namespace SERingAsteroids
                    Enabled == other.Enabled &&
                    EarlyLog == other.EarlyLog &&
                    LogDebug == other.LogDebug &&
-                   DebugDrawRingBounds == other.DebugDrawRingBounds;
+                   DebugDrawRingBounds == other.DebugDrawRingBounds &&
+                   IncludePlanetNameInRandomSeed == other.IncludePlanetNameInRandomSeed &&
+                   DisableAsteroidCleanup == other.DisableAsteroidCleanup;
         }
 
         public override int GetHashCode()
@@ -821,6 +832,8 @@ namespace SERingAsteroids
             hashCode = hashCode * -1521134295 + EarlyLog.GetHashCode();
             hashCode = hashCode * -1521134295 + LogDebug.GetHashCode();
             hashCode = hashCode * -1521134295 + DebugDrawRingBounds.GetHashCode();
+            hashCode = hashCode * -1521134295 + IncludePlanetNameInRandomSeed.GetHashCode();
+            hashCode = hashCode * -1521134295 + DisableAsteroidCleanup.GetHashCode();
             return hashCode;
         }
     }

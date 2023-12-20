@@ -37,6 +37,7 @@ namespace SERingAsteroids
         private bool _taperRingEdge;
         private bool _logDebug;
         private bool _includeNameInSeed;
+        private bool _disableCleanup;
         private readonly List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
@@ -204,6 +205,7 @@ namespace SERingAsteroids
             _voxelGeneratorVersion = config.VoxelGeneratorVersion ?? MyAPIGateway.Session.SessionSettings.VoxelGeneratorVersion;
             _logDebug = config.LogDebug ?? false;
             _includeNameInSeed = config.IncludePlanetNameInRandomSeed ?? false;
+            _disableCleanup = config.DisableAsteroidCleanup ?? false;
 
             if (config.RingZones != null)
             {
@@ -378,7 +380,9 @@ namespace SERingAsteroids
             }
 
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
-            voxelmap.Save = false;
+
+            if (!_disableCleanup)
+                voxelmap.Save = false;
 #endif
             LogDebug($"Spawned asteroid {voxelmap.EntityId} [{voxelmap.StorageName}]");
 
@@ -519,7 +523,7 @@ namespace SERingAsteroids
                     relrad = (a - 1 + Math.Sqrt(a * a + 4 * a * relrad - 2 * a + 1)) / (2 * a);
                 }
 
-                var ringHeight = innerRingHeight * (1 - relrad) + outerRingHeight * relrad;
+                ringHeight = innerRingHeight * (1 - relrad) + outerRingHeight * relrad;
 
                 var logmin = Math.Log(minAsteroidSize);
                 var logmax = Math.Log(maxAsteroidSize);
@@ -1075,7 +1079,7 @@ namespace SERingAsteroids
                         addVoxels.Enqueue(voxelDetails);
                     }
                 }
-                else if (voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
+                else if (!_disableCleanup && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
                 {
                     if (voxelDetails.VoxelMap.Save && distFromEntity > syncdist * 1.5)
                     {
