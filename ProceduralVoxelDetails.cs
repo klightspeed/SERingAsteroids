@@ -6,6 +6,8 @@ namespace SERingAsteroids
 {
     public class ProceduralVoxelDetails
     {
+        public Vector2I Sector { get; set; }
+
         public bool IsCompleted { get; set; }
 
         public bool AddPending { get; set; }

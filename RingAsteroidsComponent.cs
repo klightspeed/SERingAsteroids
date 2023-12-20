@@ -415,6 +415,8 @@ namespace SERingAsteroids
                 throw new AsteroidCreationException("Error creating asteroid", ex);
             }
 
+            pos -= new Vector3D(storage.Size.X + 1, storage.Size.Y + 1, storage.Size.Z + 1) / 2;
+
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
 
             if (!_disableCleanup)
@@ -590,6 +592,7 @@ namespace SERingAsteroids
 
                 var voxelDetails = new ProceduralVoxelDetails
                 {
+                    Sector = sector,
                     Position = pos,
                     Name = name,
                     Seed = aseed,
@@ -950,7 +953,7 @@ namespace SERingAsteroids
                         }
                         else
                         {
-                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity})");
+                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity} Sector={voxelDetails.Sector})");
                             voxelDetails.VoxelMap.Save = false;
                         }
                     }
@@ -960,7 +963,7 @@ namespace SERingAsteroids
                     }
                     else if (voxelDetails.VoxelMap.Save == false && distFromEntity < syncdist * 1.2)
                     {
-                        LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity})");
+                        LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity} Sector={voxelDetails.Sector})");
                         voxelDetails.VoxelMap.Save = true;
                     }
                 }
@@ -1124,7 +1127,7 @@ namespace SERingAsteroids
 
                 var sectorVoxelCreates = voxelCreates.Values.ToList();
 
-                GetUnmappedExistingRingAsteroids(kvp, voxelCreates, sectorVoxelCreates);
+                GetUnmappedExistingRingAsteroids(kvp.Key, voxelCreates, sectorVoxelCreates);
 
                 foreach (var voxelCreate in sectorVoxelCreates)
                 {
@@ -1158,6 +1161,11 @@ namespace SERingAsteroids
                         }
                     }
 
+                    if (voxeldistfromplayer < voxeldist)
+                    {
+                        voxeldist = voxeldistfromplayer;
+                    }
+
                     voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double, double>(voxelCreate, voxeldist - voxelCreate.Size, voxeldistfromplayer - voxelCreate.Size));
                 }
 
@@ -1166,10 +1174,10 @@ namespace SERingAsteroids
             _voxelsByDistance = voxelDistances.OrderBy(e => e.Item2).ToList();
         }
 
-        private void GetUnmappedExistingRingAsteroids(KeyValuePair<Vector2I, Dictionary<string, ProceduralVoxelDetails>> kvp, Dictionary<string, ProceduralVoxelDetails> voxelCreates, List<ProceduralVoxelDetails> sectorVoxelCreates)
+        private void GetUnmappedExistingRingAsteroids(Vector2I sector, Dictionary<string, ProceduralVoxelDetails> voxelCreates, List<ProceduralVoxelDetails> sectorVoxelCreates)
         {
             HashSet<long> voxelids;
-            if (_ringSectorVoxelMaps.TryGetValue(kvp.Key, out voxelids))
+            if (_ringSectorVoxelMaps.TryGetValue(sector, out voxelids))
             {
                 foreach (var id in voxelids)
                 {
@@ -1190,6 +1198,7 @@ namespace SERingAsteroids
                         {
                             sectorVoxelCreates.Add(new ProceduralVoxelDetails
                             {
+                                Sector = sector,
                                 Name = name,
                                 VoxelMap = (IMyVoxelMap)voxelmap,
                                 Position = position.Value,
