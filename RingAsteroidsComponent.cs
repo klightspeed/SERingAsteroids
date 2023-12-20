@@ -309,12 +309,6 @@ namespace SERingAsteroids
                     GetVoxelMaps();
                     var persistentVoxelMapCount = _voxelMaps.Values.Count(e => e.Closed == false && e.Save == true);
 
-                    if (persistentVoxelMapCount != _lastPersistentVoxelMapCount)
-                    {
-                        LogDebug($"{persistentVoxelMapCount} persistent voxel maps in world");
-                        _lastPersistentVoxelMapCount = persistentVoxelMapCount;
-                    }
-
                     Dictionary<Vector2I, List<IMyEntity>> entitySectors;
                     var sectorsToProcess = GetEntityMovements(entities, out entitySectors);
                     sectorsToProcess = GetSectorsToProcess(sectorsToProcess);
@@ -325,6 +319,19 @@ namespace SERingAsteroids
                     }
 
                     OrderPendingAsteroidsByDistance(entitySectors);
+
+                    if (persistentVoxelMapCount != _lastPersistentVoxelMapCount)
+                    {
+                        LogDebug($"{persistentVoxelMapCount} persistent voxel maps in world");
+
+                        var persistentManagedVoxelMapCount = _voxelsByDistance.Select(e => e.Item1).Count(e => e.VoxelMap?.Save == true && e.VoxelMap?.Closed == false);
+                        LogDebug($"{persistentManagedVoxelMapCount} persistent voxel maps managed by mod");
+
+                        var voxelMapsOutsideRange = _voxelsByDistance.Count(e => e.Item2 > 5000 && e.Item1.VoxelMap?.Save == true && e.Item1.VoxelMap?.Closed == false);
+                        LogDebug($"{voxelMapsOutsideRange} persistent voxel maps outside 5km");
+
+                        _lastPersistentVoxelMapCount = persistentVoxelMapCount;
+                    }
 
                     MyTuple<ProceduralVoxelDetails, double, double> voxelDetails;
 
@@ -588,6 +595,7 @@ namespace SERingAsteroids
                     }
                     else
                     {
+                        LogDebug($"Sector {sector}: Got {size}m asteroid {name} with seed {aseed} at rad:{rad:F3} phi:{(phi * 180 / Math.PI):F3} h:{y:F3} X:{pos.X:F3} Y:{pos.Y:F3} Z:{pos.Z:F3} ({sectorVoxels.Count} / {tries} / {maxAsteroids})");
                         voxelDetails.VoxelMap = existing as IMyVoxelMap;
                         sectorVoxels[name] = voxelDetails;
                     }
@@ -964,7 +972,32 @@ namespace SERingAsteroids
                     }
                 }
 
-                foreach (var voxelCreate in voxelCreates.Values)
+                var sectorVoxelCreates = voxelCreates.Values.ToList();
+
+                HashSet<long> voxelids;
+                if (_ringSectorVoxelMaps.TryGetValue(kvp.Key, out voxelids))
+                {
+                    foreach (var id in voxelids)
+                    {
+                        IMyVoxelBase voxelmap;
+                        if (_voxelMaps.TryGetValue(id, out voxelmap) &&
+                            voxelmap is IMyVoxelMap &&
+                            !voxelCreates.ContainsKey(voxelmap.StorageName) &&
+                            voxelmap.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_"))
+                        {
+                            sectorVoxelCreates.Add(new ProceduralVoxelDetails
+                            {
+                                Name = voxelmap.Name,
+                                VoxelMap = (IMyVoxelMap)voxelmap,
+                                Position = voxelmap.PositionComp.GetPosition(),
+                                Size = voxelmap.Storage.Size.X,
+                                DeleteAction = DeleteAsteroid
+                            });
+                        }
+                    }
+                }
+
+                foreach (var voxelCreate in sectorVoxelCreates)
                 {
                     var voxeldist = double.MaxValue;
                     var voxeldistfromplayer = double.MaxValue;
@@ -1066,6 +1099,7 @@ namespace SERingAsteroids
 
                     voxelDistances.Add(new MyTuple<ProceduralVoxelDetails, double, double>(voxelCreate, voxeldist - voxelCreate.Size, voxeldistfromplayer - voxelCreate.Size));
                 }
+
             }
 
             _voxelsByDistance = voxelDistances.OrderBy(e => e.Item2).ToList();
