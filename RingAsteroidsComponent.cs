@@ -333,11 +333,21 @@ namespace SERingAsteroids
                         _lastPersistentVoxelMapCount = persistentVoxelMapCount;
                     }
 
+                    if (_addVoxelsByDistance.Count != 0)
+                    {
+                        LogDebug($"{_addVoxelsByDistance.Count} asteroids to add");
+                    }
+
+                    if (_delVoxelsByDistance.Count != 0)
+                    {
+                        LogDebug($"{_delVoxelsByDistance.Count} asteroids to delete");
+                    }
+
                     MyTuple<ProceduralVoxelDetails, double, double> voxelDetails;
 
                     while (SessionComponent.VoxelAddQueueLength < 50 && _addVoxelsByDistance.TryDequeue(out voxelDetails))
                     {
-                        LogDebug($"Queueing create for asteroid {voxelDetails.Item1.VoxelMap.EntityId} [{voxelDetails.Item1.VoxelMap.StorageName}] (Dist={voxelDetails.Item2})");
+                        LogDebug($"Queueing create for asteroid {voxelDetails.Item1.Name} (Dist={voxelDetails.Item2})");
                         SessionComponent.EnqueueVoxelAdd(voxelDetails.Item1);
                     }
 
@@ -349,6 +359,7 @@ namespace SERingAsteroids
                 }
                 catch (Exception ex)
                 {
+                    LogDebug($"##MOD: Ring asteroid error: {ex}");
                     MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error: {ex}");
                     throw;
                 }
