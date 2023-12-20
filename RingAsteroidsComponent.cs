@@ -299,14 +299,21 @@ namespace SERingAsteroids
                 ReloadConfig();
             }
 
+            var entities = MyAPIGateway.Entities.GetTopMostEntitiesInBox(ref _ringBoundingBox);
+            var voxelmaps = new List<IMyVoxelBase>();
+            MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
+
+            var players = new List<IMyPlayer>();
+            MyAPIGateway.Players.GetPlayers(players);
+
             MyAPIGateway.Parallel.StartBackground(() =>
             {
                 _processing = true;
 
                 try
                 {
-                    var entities = MyAPIGateway.Entities.GetTopMostEntitiesInBox(ref _ringBoundingBox);
-                    GetVoxelMaps();
+                    GetVoxelMaps(voxelmaps);
+
                     var persistentVoxelMapCount = _voxelMaps.Values.Count(e => e.Closed == false && e.Save == true);
 
                     Dictionary<Vector2I, List<IMyEntity>> entitySectors;
@@ -318,7 +325,7 @@ namespace SERingAsteroids
                         AddAsteroidsToSector(sector);
                     }
 
-                    OrderPendingAsteroidsByDistance(entitySectors);
+                    OrderPendingAsteroidsByDistance(entitySectors, players);
 
                     if (persistentVoxelMapCount != _lastPersistentVoxelMapCount)
                     {
@@ -359,7 +366,7 @@ namespace SERingAsteroids
                 }
                 catch (Exception ex)
                 {
-                    LogDebug($"##MOD: Ring asteroid error: {ex}");
+                    Log($"##MOD: Ring asteroid error: {ex}");
                     MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error: {ex}");
                     throw;
                 }
@@ -746,10 +753,8 @@ namespace SERingAsteroids
             return retSectors.ToList();
         }
 
-        private void GetVoxelMaps()
+        private void GetVoxelMaps(List<IMyVoxelBase> voxelmaps)
         {
-            var voxelmaps = new List<IMyVoxelBase>();
-            MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
             foreach (var entity in voxelmaps)
             {
                 bool addVoxel = false;
@@ -904,12 +909,139 @@ namespace SERingAsteroids
             return sectorsToProcess.ToList();
         }
 
-        private void OrderPendingAsteroidsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors)
+        private void OrderPendingAsteroidsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors, List<IMyPlayer> players)
         {
-            var voxelDistances = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
-            var players = new List<IMyPlayer>();
+            HashSet<long> playerControlledEntities = GetPlayerControlledEntities(players);
+
+            GetVoxelsByDistance(entitySectors, playerControlledEntities);
+
+            var visdist = MyAPIGateway.Session.SessionSettings.ViewDistance;
+            var syncdist = MyAPIGateway.Session.SessionSettings.SyncDistance;
+
+            var addVoxels = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>();
+            var delVoxels = new Stack<MyTuple<ProceduralVoxelDetails, double, double>>();
+
+            foreach (var tuple in _voxelsByDistance)
+            {
+                var voxelDetails = tuple.Item1;
+                var distFromEntity = tuple.Item2;
+                var distFromPlayer = tuple.Item3;
+
+                if ((voxelDetails.VoxelMap == null || voxelDetails.VoxelMap.Closed) && distFromEntity < visdist * 1.2 && !voxelDetails.AddPending && !voxelDetails.IsInhibited)
+                {
+                    if (distFromEntity <= 0)
+                    {
+                        voxelDetails.IsInhibited = true;
+                    }
+                    else if (distFromEntity < syncdist * 1.2 || distFromPlayer < visdist * 1.2)
+                    {
+                        voxelDetails.IsModified = false;
+                        addVoxels.Enqueue(tuple);
+                    }
+                }
+                else if (!_disableCleanup && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
+                {
+                    if (voxelDetails.VoxelMap.Save && distFromEntity > syncdist * 1.5)
+                    {
+                        if (IsVoxelMapModified(voxelDetails))
+                        {
+                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] IsModified=true");
+                            voxelDetails.IsModified = true;
+                        }
+                        else
+                        {
+                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity})");
+                            voxelDetails.VoxelMap.Save = false;
+                        }
+                    }
+                    else if (distFromEntity > syncdist * 1.5 && distFromPlayer > visdist * 1.5)
+                    {
+                        delVoxels.Push(tuple);
+                    }
+                    else if (voxelDetails.VoxelMap.Save == false && distFromEntity < syncdist * 1.2)
+                    {
+                        LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity})");
+                        voxelDetails.VoxelMap.Save = true;
+                    }
+                }
+            }
+
+            _addVoxelsByDistance = addVoxels;
+            _delVoxelsByDistance = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>(delVoxels);
+        }
+
+        private bool IsVoxelMapModified(ProceduralVoxelDetails voxelDetails)
+        {
+            byte[] data;
+            voxelDetails.VoxelMap.Storage.Save(out data);
+
+            // If voxel has been modified, compressed data will be returned
+            var modified = data[0] != 0x06;
+            var uncompressedLen = BitConverter.ToInt32(data, data.Length - 4);
+
+            if (modified)
+            {
+                if (data.Length >= 2048) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Filesize={data.Length})");
+                if (uncompressedLen < data.Length) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (UncompressedLength={uncompressedLen} Filesize={data.Length})");
+                if (uncompressedLen >= 4096) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (UncompressedLength={uncompressedLen} Filesize={data.Length})");
+                if (data[0] != 0x1f) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (data[0]={data[0]})");
+            }
+
+
+            // Asteroids with even the tiniest dent are almost always >2kB in size, while unmodified asteroids are usually <1kB in size
+            // Testing in an empty world, a 64x64x64 asteroid with a single 1x1x1 voxel hand addition was 701 bytes compressed or 1391 bytes uncompressed
+            // Meanwhile an unmodified asteroid generated using CreateProceduralVoxelMap in the Perdiso system was 889 bytes compressed or 1813 bytes uncompressed
+            if (modified && data[0] == 0x1f && data.Length < 2048 && uncompressedLen > data.Length && uncompressedLen < 4096)
+            {
+                var buf = new byte[data.Length + 4];
+
+                // GZip files include the uncompressed length at the end of the buffer
+                // MyCompression.Decompress expects this at the start of the buffer
+                // Copy length from end of buffer to start of buffer
+                Array.Copy(data, data.Length - 4, buf, 0, 4);
+                Array.Copy(data, 0, buf, 4, data.Length);
+
+                try
+                {
+                    var cbuf = MyCompression.Decompress(buf);
+                    var buffer = new ByteArrayBuffer(cbuf);
+
+                    OctreeStorage.OctreeStorage storage;
+                    if (OctreeStorage.OctreeStorage.TryRead(buffer, out storage, s => LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}]: {s}")))
+                    {
+                        if (storage.MacroContentNodes.Nodes.Length != 0)
+                            LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MacroContentNodes: {storage.MacroContentNodes.Nodes.Length})");
+                        if (storage.MacroMaterialNodes.Nodes.Length != 0)
+                            LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MacroMaterialNodes: {storage.MacroMaterialNodes.Nodes.Length})");
+                        if (storage.ContentLeaves.Length != 1)
+                            LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: {storage.ContentLeaves.Length})");
+                        if (storage.MaterialLeaves.Length != 1)
+                            LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: {storage.MaterialLeaves.Length})");
+                        if (storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider))
+                            LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: HasNonProvider)");
+                        if (storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider))
+                            LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MaterialLeaves: HasNonProvider)");
+
+                        modified = storage.MacroContentNodes.Nodes.Length != 0
+                                || storage.MacroMaterialNodes.Nodes.Length != 0
+                                || storage.ContentLeaves.Length != 1
+                                || storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider)
+                                || storage.MaterialLeaves.Length != 1
+                                || storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Exception: {ex})");
+                }
+            }
+
+            return modified;
+        }
+
+        private static HashSet<long> GetPlayerControlledEntities(List<IMyPlayer> players)
+        {
             var playerControlledEntities = new HashSet<long>();
-            MyAPIGateway.Players.GetPlayers(players);
 
             foreach (var player in players)
             {
@@ -939,10 +1071,17 @@ namespace SERingAsteroids
                 }
             }
 
+            return playerControlledEntities;
+        }
+
+        private void GetVoxelsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors, HashSet<long> playerControlledEntities)
+        {
+            var voxelDistances = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
+
             foreach (var kvp in _voxelCreationDetails)
             {
                 var entities = new Dictionary<long, IMyEntity>();
-                var voxelCreates = kvp.Value; 
+                var voxelCreates = kvp.Value;
                 var sectorsByDistance = new List<MyTuple<Vector2I, double>>();
                 var sector = kvp.Key;
                 var secrad = (sector.Y + 0.5) * _sectorSize;
@@ -985,28 +1124,7 @@ namespace SERingAsteroids
 
                 var sectorVoxelCreates = voxelCreates.Values.ToList();
 
-                HashSet<long> voxelids;
-                if (_ringSectorVoxelMaps.TryGetValue(kvp.Key, out voxelids))
-                {
-                    foreach (var id in voxelids)
-                    {
-                        IMyVoxelBase voxelmap;
-                        if (_voxelMaps.TryGetValue(id, out voxelmap) &&
-                            voxelmap is IMyVoxelMap &&
-                            !voxelCreates.ContainsKey(voxelmap.StorageName) &&
-                            voxelmap.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
-                        {
-                            sectorVoxelCreates.Add(new ProceduralVoxelDetails
-                            {
-                                Name = voxelmap.Name,
-                                VoxelMap = (IMyVoxelMap)voxelmap,
-                                Position = voxelmap.PositionComp.GetPosition(),
-                                Size = voxelmap.Storage.Size.X,
-                                DeleteAction = DeleteAsteroid
-                            });
-                        }
-                    }
-                }
+                GetUnmappedExistingRingAsteroids(kvp, voxelCreates, sectorVoxelCreates);
 
                 foreach (var voxelCreate in sectorVoxelCreates)
                 {
@@ -1017,75 +1135,7 @@ namespace SERingAsteroids
                     {
                         if (entity is IMyCubeGrid && !entity.Closed)
                         {
-                            var grid = (IMyCubeGrid)entity;
-                            var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
-                            var maxpos = grid.Max;
-                            var minpos = grid.Min;
-                            var nearestcorner = Vector3I.Clamp(gridpos, grid.Min, grid.Max);
-                            var distsq = (grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position).LengthSquared();
-
-                            if (distsq < voxeldist * voxeldist || (distsq < voxeldistfromplayer * voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId)))
-                            {
-                                var blocks = new List<IMySlimBlock>();
-                                grid.GetBlocks(blocks);
-                                var mingriddistsq = long.MaxValue;
-                                var mingriddistfromplayersq = long.MaxValue;
-
-                                foreach (var block in blocks)
-                                {
-                                    var vec = (block.Position - gridpos);
-                                    var vecdistsq = (long)vec.X * vec.X + (long)vec.Y * vec.Y + (long)vec.Z * vec.Z;
-
-                                    if (vecdistsq < mingriddistsq)
-                                    {
-                                        mingriddistsq = vecdistsq;
-                                    }
-
-                                    if (block.FatBlock != null && playerControlledEntities.Contains(block.FatBlock.EntityId) && vecdistsq < mingriddistfromplayersq)
-                                    {
-                                        mingriddistfromplayersq = vecdistsq;
-                                    }
-                                }
-
-                                var mingriddist = grid.GridSize * Math.Sqrt(mingriddistsq);
-                                var mingriddistfromplayer = grid.GridSize * Math.Sqrt(mingriddistfromplayersq);
-
-                                if (mingriddist < voxeldist)
-                                {
-                                    voxeldist = mingriddist;
-                                }
-
-                                if (mingriddistfromplayer < voxeldistfromplayer)
-                                {
-                                    voxeldistfromplayer = mingriddistfromplayer;
-                                }
-                            }
-
-                            if (grid.JumpSystem?.IsJumping == true)
-                            {
-                                var jumpTarget = grid.JumpSystem.GetJumpDriveTarget();
-
-                                if (jumpTarget != null)
-                                {
-                                    var dist = (jumpTarget.Value - voxelCreate.Position).Length();
-
-                                    // Don't inhibit spawn at jump target
-                                    if (dist < voxelCreate.Size * 1.2)
-                                    {
-                                        dist = voxelCreate.Size * 1.2;
-                                    }
-
-                                    if (dist < voxeldist)
-                                    {
-                                        voxeldist = dist;
-                                    }
-
-                                    if (dist < voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId))
-                                    {
-                                        voxeldistfromplayer = dist;
-                                    }
-                                }
-                            }
+                            GetGridDistance(playerControlledEntities, voxelCreate, ref voxeldist, ref voxeldistfromplayer, entity);
                         }
                         else
                         {
@@ -1114,124 +1164,123 @@ namespace SERingAsteroids
             }
 
             _voxelsByDistance = voxelDistances.OrderBy(e => e.Item2).ToList();
+        }
 
-            var visdist = MyAPIGateway.Session.SessionSettings.ViewDistance;
-            var syncdist = MyAPIGateway.Session.SessionSettings.SyncDistance;
-
-            var addVoxels = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>();
-            var delVoxels = new Stack<MyTuple<ProceduralVoxelDetails, double, double>>();
-
-            foreach (var tuple in _voxelsByDistance)
+        private void GetUnmappedExistingRingAsteroids(KeyValuePair<Vector2I, Dictionary<string, ProceduralVoxelDetails>> kvp, Dictionary<string, ProceduralVoxelDetails> voxelCreates, List<ProceduralVoxelDetails> sectorVoxelCreates)
+        {
+            HashSet<long> voxelids;
+            if (_ringSectorVoxelMaps.TryGetValue(kvp.Key, out voxelids))
             {
-                var voxelDetails = tuple.Item1;
-                var distFromEntity = tuple.Item2;
-                var distFromPlayer = tuple.Item3;
-
-                if ((voxelDetails.VoxelMap == null || voxelDetails.VoxelMap.Closed) && distFromEntity < visdist * 1.2 && !voxelDetails.AddPending && !voxelDetails.IsInhibited)
+                foreach (var id in voxelids)
                 {
-                    if (distFromEntity <= 0)
-                    {
-                        voxelDetails.IsInhibited = true;
-                    }
-                    else if (distFromEntity < syncdist * 1.2 || distFromPlayer < visdist * 1.2)
-                    {
-                        voxelDetails.IsModified = false;
-                        addVoxels.Enqueue(tuple);
-                    }
-                }
-                else if (!_disableCleanup && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
-                {
-                    if (voxelDetails.VoxelMap.Save && distFromEntity > syncdist * 1.5)
-                    {
-                        byte[] data;
-                        voxelDetails.VoxelMap.Storage.Save(out data);
+                    IMyVoxelBase voxelmap;
 
-                        // If voxel has been modified, compressed data will be returned
-                        var modified = data[0] != 0x06;
-                        var uncompressedLen = BitConverter.ToInt32(data, data.Length - 4);
+                    if (_voxelMaps.TryGetValue(id, out voxelmap))
+                    {
+                        var name = voxelmap.StorageName;
+                        var position = voxelmap.PositionComp?.GetPosition();
+                        var size = voxelmap.Storage?.Size.X;
 
-                        if (modified)
+                        if (voxelmap is IMyVoxelMap &&
+                            !voxelmap.Closed &&
+                            !voxelCreates.ContainsKey(name) &&
+                            position != null &&
+                            size != null &&
+                            name.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
                         {
-                            if (data.Length >= 2048) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Filesize={data.Length})");
-                            if (uncompressedLen < data.Length) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (UncompressedLength={uncompressedLen} Filesize={data.Length})");
-                            if (uncompressedLen >= 4096) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (UncompressedLength={uncompressedLen} Filesize={data.Length})");
-                            if (data[0] != 0x1f) LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (data[0]={data[0]})");
-                        }
-
-
-                        // Asteroids with even the tiniest dent are almost always >2kB in size, while unmodified asteroids are usually <1kB in size
-                        // Testing in an empty world, a 64x64x64 asteroid with a single 1x1x1 voxel hand addition was 701 bytes compressed or 1391 bytes uncompressed
-                        // Meanwhile an unmodified asteroid generated using CreateProceduralVoxelMap in the Perdiso system was 889 bytes compressed or 1813 bytes uncompressed
-                        if (modified && data[0] == 0x1f && data.Length < 2048 && uncompressedLen > data.Length && uncompressedLen < 4096)
-                        {
-                            var buf = new byte[data.Length + 4];
-
-                            // GZip files include the uncompressed length at the end of the buffer
-                            // MyCompression.Decompress expects this at the start of the buffer
-                            // Copy length from end of buffer to start of buffer
-                            Array.Copy(data, data.Length - 4, buf, 0, 4);
-                            Array.Copy(data, 0, buf, 4, data.Length);
-
-                            try
+                            sectorVoxelCreates.Add(new ProceduralVoxelDetails
                             {
-                                var cbuf = MyCompression.Decompress(buf);
-                                var buffer = new ByteArrayBuffer(cbuf);
-
-                                OctreeStorage.OctreeStorage storage;
-                                if (OctreeStorage.OctreeStorage.TryRead(buffer, out storage, s => LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}]: {s}")))
-                                {
-                                    if (storage.MacroContentNodes.Nodes.Length != 0)
-                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MacroContentNodes: {storage.MacroContentNodes.Nodes.Length})");
-                                    if (storage.MacroMaterialNodes.Nodes.Length != 0)
-                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MacroMaterialNodes: {storage.MacroMaterialNodes.Nodes.Length})");
-                                    if (storage.ContentLeaves.Length != 1)
-                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: {storage.ContentLeaves.Length})");
-                                    if (storage.MaterialLeaves.Length != 1)
-                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: {storage.MaterialLeaves.Length})");
-                                    if (storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider))
-                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (ContentLeaves: HasNonProvider)");
-                                    if (storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider))
-                                        LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (MaterialLeaves: HasNonProvider)");
-
-                                    modified = storage.MacroContentNodes.Nodes.Length != 0
-                                            || storage.MacroMaterialNodes.Nodes.Length != 0
-                                            || storage.ContentLeaves.Length != 1
-                                            || storage.ContentLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.ContentLeafProvider)
-                                            || storage.MaterialLeaves.Length != 1
-                                            || storage.MaterialLeaves.Any(e => e.Type != OctreeStorage.OctreeStorageChunkType.MaterialLeafProvider);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                LogDebug($"Asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Exception: {ex})");
-                            }
-                        }
-
-                        if (modified)
-                        {
-                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] IsModified=true (Filesize={data.Length})");
-                            voxelDetails.IsModified = true;
-                        }
-                        else
-                        {
-                            LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity})");
-                            voxelDetails.VoxelMap.Save = false;
+                                Name = name,
+                                VoxelMap = (IMyVoxelMap)voxelmap,
+                                Position = position.Value,
+                                Size = size.Value,
+                                DeleteAction = DeleteAsteroid
+                            });
                         }
                     }
-                    else if (distFromEntity > syncdist * 1.5 && distFromPlayer > visdist * 1.5)
+
+                    if (_voxelMaps.TryGetValue(id, out voxelmap) &&
+                        voxelmap is IMyVoxelMap &&
+                        !voxelmap.Closed &&
+                        !voxelCreates.ContainsKey(voxelmap.StorageName) &&
+                        voxelmap.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
                     {
-                        delVoxels.Push(tuple);
-                    }
-                    else if (voxelDetails.VoxelMap.Save == false && distFromEntity < syncdist * 1.2)
-                    {
-                        LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity})");
-                        voxelDetails.VoxelMap.Save = true;
                     }
                 }
             }
+        }
 
-            _addVoxelsByDistance = addVoxels;
-            _delVoxelsByDistance = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>(delVoxels);
+        private static void GetGridDistance(HashSet<long> playerControlledEntities, ProceduralVoxelDetails voxelCreate, ref double voxeldist, ref double voxeldistfromplayer, IMyEntity entity)
+        {
+            var grid = (IMyCubeGrid)entity;
+            var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
+            var maxpos = grid.Max;
+            var minpos = grid.Min;
+            var nearestcorner = Vector3I.Clamp(gridpos, grid.Min, grid.Max);
+            var distsq = (grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position).LengthSquared();
+
+            if (distsq < voxeldist * voxeldist || (distsq < voxeldistfromplayer * voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId)))
+            {
+                var blocks = new List<IMySlimBlock>();
+                grid.GetBlocks(blocks);
+                var mingriddistsq = long.MaxValue;
+                var mingriddistfromplayersq = long.MaxValue;
+
+                foreach (var block in blocks)
+                {
+                    var vec = (block.Position - gridpos);
+                    var vecdistsq = (long)vec.X * vec.X + (long)vec.Y * vec.Y + (long)vec.Z * vec.Z;
+
+                    if (vecdistsq < mingriddistsq)
+                    {
+                        mingriddistsq = vecdistsq;
+                    }
+
+                    if (block.FatBlock != null && playerControlledEntities.Contains(block.FatBlock.EntityId) && vecdistsq < mingriddistfromplayersq)
+                    {
+                        mingriddistfromplayersq = vecdistsq;
+                    }
+                }
+
+                var mingriddist = grid.GridSize * Math.Sqrt(mingriddistsq);
+                var mingriddistfromplayer = grid.GridSize * Math.Sqrt(mingriddistfromplayersq);
+
+                if (mingriddist < voxeldist)
+                {
+                    voxeldist = mingriddist;
+                }
+
+                if (mingriddistfromplayer < voxeldistfromplayer)
+                {
+                    voxeldistfromplayer = mingriddistfromplayer;
+                }
+            }
+
+            if (grid.JumpSystem?.IsJumping == true)
+            {
+                var jumpTarget = grid.JumpSystem.GetJumpDriveTarget();
+
+                if (jumpTarget != null)
+                {
+                    var dist = (jumpTarget.Value - voxelCreate.Position).Length();
+
+                    // Don't inhibit spawn at jump target
+                    if (dist < voxelCreate.Size * 1.2)
+                    {
+                        dist = voxelCreate.Size * 1.2;
+                    }
+
+                    if (dist < voxeldist)
+                    {
+                        voxeldist = dist;
+                    }
+
+                    if (dist < voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId))
+                    {
+                        voxeldistfromplayer = dist;
+                    }
+                }
+            }
         }
     }
 }
