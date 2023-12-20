@@ -51,6 +51,7 @@ namespace SERingAsteroids
         private MyPlanet _planet;
         private bool _processing;
         private bool _reloadRequired;
+        private int _lastPersistentVoxelMapCount;
 
         private readonly Queue<string> loglines = new Queue<string>();
         private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
@@ -63,9 +64,9 @@ namespace SERingAsteroids
         private readonly Dictionary<Vector2I, int> _ringSectorMaxAsteroids = new Dictionary<Vector2I, int>();
         private readonly Dictionary<Vector2I, Dictionary<string, ProceduralVoxelDetails>> _voxelCreationDetails = new Dictionary<Vector2I, Dictionary<string, ProceduralVoxelDetails>>();
         private readonly HashSet<Vector2I> _ringSectorsCompleted = new HashSet<Vector2I>();
-        private Queue<ProceduralVoxelDetails> _addVoxelsByDistance = new Queue<ProceduralVoxelDetails>();
+        private Queue<MyTuple<ProceduralVoxelDetails, double, double>> _addVoxelsByDistance = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>();
         private List<MyTuple<ProceduralVoxelDetails, double, double>> _voxelsByDistance = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
-        private Queue<ProceduralVoxelDetails> _delVoxelsByDistance = new Queue<ProceduralVoxelDetails>();
+        private Queue<MyTuple<ProceduralVoxelDetails, double, double>> _delVoxelsByDistance = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>();
 
         private readonly object _loggerLock = new object();
 
@@ -306,6 +307,13 @@ namespace SERingAsteroids
                 {
                     var entities = MyAPIGateway.Entities.GetTopMostEntitiesInBox(ref _ringBoundingBox);
                     GetVoxelMaps();
+                    var persistentVoxelMapCount = _voxelMaps.Values.Count(e => e.Closed == false && e.Save == true);
+
+                    if (persistentVoxelMapCount != _lastPersistentVoxelMapCount)
+                    {
+                        LogDebug($"{persistentVoxelMapCount} persistent voxel maps in world");
+                        _lastPersistentVoxelMapCount = persistentVoxelMapCount;
+                    }
 
                     Dictionary<Vector2I, List<IMyEntity>> entitySectors;
                     var sectorsToProcess = GetEntityMovements(entities, out entitySectors);
@@ -318,16 +326,18 @@ namespace SERingAsteroids
 
                     OrderPendingAsteroidsByDistance(entitySectors);
 
-                    ProceduralVoxelDetails voxelDetails;
+                    MyTuple<ProceduralVoxelDetails, double, double> voxelDetails;
 
                     while (SessionComponent.VoxelAddQueueLength < 50 && _addVoxelsByDistance.TryDequeue(out voxelDetails))
                     {
-                        SessionComponent.EnqueueVoxelAdd(voxelDetails);
+                        LogDebug($"Queueing create for asteroid {voxelDetails.Item1.VoxelMap.EntityId} [{voxelDetails.Item1.VoxelMap.StorageName}] (Dist={voxelDetails.Item2})");
+                        SessionComponent.EnqueueVoxelAdd(voxelDetails.Item1);
                     }
 
                     while (SessionComponent.VoxelDelQueueLength < 50 && _delVoxelsByDistance.TryDequeue(out voxelDetails))
                     {
-                        SessionComponent.EnqueueVoxelDelete(voxelDetails);
+                        LogDebug($"Queueing delete for asteroid {voxelDetails.Item1.VoxelMap.EntityId} [{voxelDetails.Item1.VoxelMap.StorageName}] (Dist={voxelDetails.Item2})");
+                        SessionComponent.EnqueueVoxelDelete(voxelDetails.Item1);
                     }
                 }
                 catch (Exception ex)
@@ -670,6 +680,11 @@ namespace SERingAsteroids
                         }
                     }
                 }
+            }
+
+            foreach (var sector in _ringSectorVoxelMaps.Keys)
+            {
+                sectorsToProcess.Add(sector);
             }
 
             foreach (var sector in sectorsToProcess)
@@ -1058,8 +1073,8 @@ namespace SERingAsteroids
             var visdist = MyAPIGateway.Session.SessionSettings.ViewDistance;
             var syncdist = MyAPIGateway.Session.SessionSettings.SyncDistance;
 
-            var addVoxels = new Queue<ProceduralVoxelDetails>();
-            var delVoxels = new Stack<ProceduralVoxelDetails>();
+            var addVoxels = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>();
+            var delVoxels = new Stack<MyTuple<ProceduralVoxelDetails, double, double>>();
 
             foreach (var tuple in _voxelsByDistance)
             {
@@ -1076,7 +1091,7 @@ namespace SERingAsteroids
                     else if (distFromEntity < syncdist * 1.2 || distFromPlayer < visdist * 1.2)
                     {
                         voxelDetails.IsModified = false;
-                        addVoxels.Enqueue(voxelDetails);
+                        addVoxels.Enqueue(tuple);
                     }
                 }
                 else if (!_disableCleanup && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
@@ -1160,8 +1175,7 @@ namespace SERingAsteroids
                     }
                     else if (distFromEntity > syncdist * 1.5 && distFromPlayer > visdist * 1.5)
                     {
-                        LogDebug($"Queueing delete for asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] (Dist={distFromEntity})");
-                        delVoxels.Push(voxelDetails);
+                        delVoxels.Push(tuple);
                     }
                     else if (voxelDetails.VoxelMap.Save == false && distFromEntity < syncdist * 1.2)
                     {
@@ -1172,7 +1186,7 @@ namespace SERingAsteroids
             }
 
             _addVoxelsByDistance = addVoxels;
-            _delVoxelsByDistance = new Queue<ProceduralVoxelDetails>(delVoxels);
+            _delVoxelsByDistance = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>(delVoxels);
         }
     }
 }
