@@ -757,7 +757,7 @@ namespace SERingAsteroids
 
                     _voxelMapSectors[entity.EntityId] = sector;
 
-                    if (sector != default(Vector2I) && entity.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_"))
+                    if (sector != default(Vector2I) && entity.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
                     {
                         HashSet<long> ids;
 
@@ -983,7 +983,7 @@ namespace SERingAsteroids
                         if (_voxelMaps.TryGetValue(id, out voxelmap) &&
                             voxelmap is IMyVoxelMap &&
                             !voxelCreates.ContainsKey(voxelmap.StorageName) &&
-                            voxelmap.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_"))
+                            voxelmap.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
                         {
                             sectorVoxelCreates.Add(new ProceduralVoxelDetails
                             {
