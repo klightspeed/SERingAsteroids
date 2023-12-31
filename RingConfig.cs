@@ -219,14 +219,14 @@ namespace SERingAsteroids
             new RingConfig
             {
                 PlanetName = "Limitar",
-                PlanetRadius = 300000,
+                PlanetRadius = 150000,
                 RingLongitudeAscendingNode = 0,
                 RingInclination = 0,
-                RingInnerRadius = 390000.0,
-                RingOuterRadius = 660000.0,
-                RingHeight = 2100.0,
+                RingInnerRadius = 200000.0,
+                RingOuterRadius = 330000.0,
+                RingHeight = 1000.0,
                 SectorSize = 10000.0,
-                MaxAsteroidsPerSector = 30
+                MaxAsteroidsPerSector = 10
             }
         };
 
