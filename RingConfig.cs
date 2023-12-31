@@ -480,8 +480,29 @@ namespace SERingAsteroids
                 ringConfig.RingInnerRadius *= sizemult;
                 ringConfig.RingOuterRadius *= sizemult;
                 ringConfig.RingHeight *= sizemult;
-                ringConfig.SectorSize *= sizemult;
                 ringConfig.PlanetRadius = planet.AverageRadius;
+
+                if (ringConfig.MaxAsteroidsPerSector >= 5)
+                {
+                    if (sizemult < 0.5 && ringConfig.MaxAsteroidsPerSector * sizemult * 0.25 * 0.25 >= 5)
+                    {
+                        ringConfig.SectorSize *= 0.25;
+                        ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector == null ? null : (int?)Math.Ceiling(ringConfig.MaxAsteroidsPerSector.Value * sizemult * 0.25 * 0.25);
+                    }
+                    else if (sizemult < 0.75 && ringConfig.MaxAsteroidsPerSector * sizemult * 0.5 * 0.5 >= 5)
+                    {
+                        ringConfig.SectorSize *= 0.5;
+                        ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector == null ? null : (int?)Math.Ceiling(ringConfig.MaxAsteroidsPerSector.Value * sizemult * 0.5 * 0.5);
+                    }
+                    else if (ringConfig.MaxAsteroidsPerSector * sizemult >= 5)
+                    {
+                        ringConfig.MaxAsteroidsPerSector = (int)(ringConfig.MaxAsteroidsPerSector * sizemult);
+                    }
+                    else
+                    {
+                        ringConfig.MaxAsteroidsPerSector = 5;
+                    }
+                }
 
                 if (ringConfig.RingZones != null)
                 {
