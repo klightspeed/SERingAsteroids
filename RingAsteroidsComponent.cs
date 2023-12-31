@@ -761,22 +761,23 @@ namespace SERingAsteroids
             foreach (var entity in voxelmaps)
             {
                 bool addVoxel = false;
+                var storageName = entity.StorageName;
+                var pos = entity.PositionComp?.GetPosition() ?? Vector3D.Zero;
 
-                if (!_voxelMaps.ContainsKey(entity.EntityId))
+                if (!_voxelMaps.ContainsKey(entity.EntityId) && storageName != null && !entity.Closed)
                 {
                     addVoxel = true;
                     _voxelMaps[entity.EntityId] = entity;
-                    _voxelMapsByName[entity.StorageName] = entity;
+                    _voxelMapsByName[storageName] = entity;
                 }
 
                 if (addVoxel)
                 {
-                    var pos = entity.PositionComp.GetPosition();
-                    var sector = GetRingSectorForPosition(pos, $"{entity.EntityId} [{entity.StorageName}]");
+                    var sector = GetRingSectorForPosition(pos, $"{entity.EntityId} [{storageName}]");
 
                     _voxelMapSectors[entity.EntityId] = sector;
 
-                    if (sector != default(Vector2I) && entity.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
+                    if (sector != default(Vector2I) && storageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
                     {
                         HashSet<long> ids;
 
