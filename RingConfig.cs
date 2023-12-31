@@ -3,6 +3,7 @@ using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using VRage.Game.ModAPI;
 using VRage.Utils;
@@ -214,6 +215,18 @@ namespace SERingAsteroids
                 RingHeight = 1000.0,
                 SectorSize = 10000.0,
                 MaxAsteroidsPerSector = 10
+            },
+            new RingConfig
+            {
+                PlanetName = "Limitar",
+                PlanetRadius = 300000,
+                RingLongitudeAscendingNode = 0,
+                RingInclination = 0,
+                RingInnerRadius = 390000.0,
+                RingOuterRadius = 660000.0,
+                RingHeight = 2100.0,
+                SectorSize = 10000.0,
+                MaxAsteroidsPerSector = 30
             }
         };
 
