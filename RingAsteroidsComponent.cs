@@ -40,6 +40,8 @@ namespace SERingAsteroids
         private bool _logDebug;
         private bool _includeNameInSeed;
         private bool _disableCleanup;
+        private bool _disableSaveLimit;
+        private bool _limitPhysics;
         private readonly List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
@@ -209,6 +211,8 @@ namespace SERingAsteroids
             _logDebug = config.LogDebug ?? false;
             _includeNameInSeed = config.IncludePlanetNameInRandomSeed ?? false;
             _disableCleanup = config.DisableAsteroidCleanup ?? false;
+            _disableSaveLimit = config.DisableReducedSaveDistance ?? false;
+            _limitPhysics = config.DisablePhysicsIfOutOfRange ?? false;
 
             if (config.RingZones != null)
             {
@@ -421,7 +425,7 @@ namespace SERingAsteroids
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
             MyEntities.RaiseEntityCreated(voxelmap as MyEntity);
 
-            if (!_disableCleanup)
+            if (!_disableCleanup && !_disableSaveLimit)
                 voxelmap.Save = false;
 #endif
             LogDebug($"Spawned asteroid {voxelmap.EntityId} [{voxelmap.StorageName}]");
@@ -933,6 +937,23 @@ namespace SERingAsteroids
                 var distFromEntity = tuple.Item2;
                 var distFromPlayer = tuple.Item3;
 
+                if (_limitPhysics && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && !voxelDetails.DeletePending)
+                {
+                    var physics = voxelDetails.VoxelMap.Physics;
+
+                    if (physics != null)
+                    {
+                        if (distFromEntity > syncdist * 1.5 && physics.IsActive)
+                        {
+                            physics.Enabled = false;
+                        }
+                        else if (distFromEntity < syncdist * 1.2 && !physics.IsActive)
+                        {
+                            physics.Enabled = true;
+                        }
+                    }
+                }
+
                 if ((voxelDetails.VoxelMap == null || voxelDetails.VoxelMap.Closed) && distFromEntity < visdist * 1.2 && !voxelDetails.AddPending && !voxelDetails.IsInhibited)
                 {
                     if (distFromEntity <= 0)
@@ -954,10 +975,14 @@ namespace SERingAsteroids
                             LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] IsModified=true");
                             voxelDetails.IsModified = true;
                         }
-                        else
+                        else if (!_disableSaveLimit)
                         {
                             LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity} Sector={voxelDetails.Sector})");
                             voxelDetails.VoxelMap.Save = false;
+                        }
+                        else if (distFromPlayer > visdist * 1.5)
+                        {
+                            delVoxels.Push(tuple);
                         }
                     }
                     else if (distFromEntity > syncdist * 1.5 && distFromPlayer > visdist * 1.5)

@@ -89,6 +89,12 @@ namespace SERingAsteroids
         [ProtoMember(25)]
         public bool? DisableAsteroidCleanup { get; set; }
 
+        [ProtoMember(26)]
+        public bool? DisableReducedSaveDistance { get; set; }
+
+        [ProtoMember(27)]
+        public bool? DisablePhysicsIfOutOfRange { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 
@@ -275,6 +281,8 @@ namespace SERingAsteroids
                 DebugDrawRingBounds = DebugDrawRingBounds,
                 IncludePlanetNameInRandomSeed = IncludePlanetNameInRandomSeed,
                 DisableAsteroidCleanup = DisableAsteroidCleanup,
+                DisableReducedSaveDistance = DisableReducedSaveDistance,
+                DisablePhysicsIfOutOfRange = DisablePhysicsIfOutOfRange,
             };
         }
 
@@ -481,6 +489,8 @@ namespace SERingAsteroids
                     ringConfig.PlanetRadius               = ringConfig.PlanetRadius               ?? config.PlanetRadius;
                     ringConfig.IncludePlanetNameInRandomSeed = ringConfig.IncludePlanetNameInRandomSeed ?? config.IncludePlanetNameInRandomSeed;
                     ringConfig.DisableAsteroidCleanup     = ringConfig.DisableAsteroidCleanup     ?? config.DisableAsteroidCleanup;
+                    ringConfig.DisableReducedSaveDistance = ringConfig.DisableReducedSaveDistance ?? config.DisableReducedSaveDistance;
+                    ringConfig.DisablePhysicsIfOutOfRange = ringConfig.DisablePhysicsIfOutOfRange ?? config.DisablePhysicsIfOutOfRange;
 
                     if (config.PlanetName != null)
                         ringConfig.Enabled                = ringConfig.Enabled                    ?? config.Enabled;
@@ -540,6 +550,8 @@ namespace SERingAsteroids
                 exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
                 exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
                 exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
+                exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
+                exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? true;
 
                 exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
@@ -826,7 +838,9 @@ namespace SERingAsteroids
                    LogDebug == other.LogDebug &&
                    DebugDrawRingBounds == other.DebugDrawRingBounds &&
                    IncludePlanetNameInRandomSeed == other.IncludePlanetNameInRandomSeed &&
-                   DisableAsteroidCleanup == other.DisableAsteroidCleanup;
+                   DisableAsteroidCleanup == other.DisableAsteroidCleanup &&
+                   DisableReducedSaveDistance == other.DisableReducedSaveDistance &&
+                   DisablePhysicsIfOutOfRange == other.DisablePhysicsIfOutOfRange;
         }
 
         public override int GetHashCode()
@@ -868,6 +882,8 @@ namespace SERingAsteroids
             hashCode = hashCode * -1521134295 + DebugDrawRingBounds.GetHashCode();
             hashCode = hashCode * -1521134295 + IncludePlanetNameInRandomSeed.GetHashCode();
             hashCode = hashCode * -1521134295 + DisableAsteroidCleanup.GetHashCode();
+            hashCode = hashCode * -1521134295 + DisableReducedSaveDistance.GetHashCode();
+            hashCode = hashCode * -1521134295 + DisablePhysicsIfOutOfRange.GetHashCode();
             return hashCode;
         }
     }
