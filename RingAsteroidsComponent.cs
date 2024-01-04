@@ -9,6 +9,7 @@ using System.Linq;
 using VRage;
 using VRage.Game;
 using VRage.Game.Components;
+using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.Library.Utils;
 using VRage.ModAPI;
@@ -418,6 +419,7 @@ namespace SERingAsteroids
             pos -= new Vector3D(storage.Size.X + 1, storage.Size.Y + 1, storage.Size.Z + 1) / 2;
 
             voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
+            MyEntities.RaiseEntityCreated(voxelmap as MyEntity);
 
             if (!_disableCleanup)
                 voxelmap.Save = false;
