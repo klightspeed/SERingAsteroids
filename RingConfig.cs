@@ -540,27 +540,34 @@ namespace SERingAsteroids
                 }
             }
 
-            if (ringConfig.PlanetName != null)
+            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? planet.MaximumRadius * 1.25;
+            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? planet.MaximumRadius * 2;
+            ringConfig.RingHeight = ringConfig.RingHeight ?? 2000;
+            ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
+            ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
+            ringConfig.SectorSize = ringConfig.SectorSize ?? 10000;
+            ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
+            ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
+
+            var exampleConfig = ringConfig.Clone();
+            exampleConfig.PlanetName = planet.StorageName;
+            exampleConfig.ModId = modid;
+            exampleConfig.Enabled = exampleConfig.Enabled ?? false;
+            exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
+            exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
+            exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
+            exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
+            exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
+            exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? true;
+            exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? true;
+
+            exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
+
+            exampleConfig.RingCentre = null;
+
+            using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(configFileName + ".example", typeof(RingAsteroidsComponent)))
             {
-                var exampleConfig = ringConfig.Clone();
-                exampleConfig.PlanetName = planet.StorageName;
-                exampleConfig.ModId = modid;
-                exampleConfig.Enabled = exampleConfig.Enabled ?? false;
-                exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
-                exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
-                exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
-                exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
-                exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
-                exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? true;
-
-                exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
-
-                exampleConfig.RingCentre = null;
-
-                using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(configFileName + ".example", typeof(RingAsteroidsComponent)))
-                {
-                    writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleConfig));
-                }
+                writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleConfig));
             }
 
             using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("ringDefaults.xml.example", typeof(RingAsteroidsComponent)))
@@ -577,15 +584,6 @@ namespace SERingAsteroids
             }
 
             ringConfig.RingCentre = planet.PositionComp.GetPosition();
-
-            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? planet.MaximumRadius * 1.25;
-            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? planet.MaximumRadius * 2;
-            ringConfig.RingHeight = ringConfig.RingHeight ?? 2000;
-            ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
-            ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
-            ringConfig.SectorSize = ringConfig.SectorSize ?? 10000;
-            ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
-            ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
 
             return ringConfig;
         }
