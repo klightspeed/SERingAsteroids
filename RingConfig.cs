@@ -558,7 +558,7 @@ namespace SERingAsteroids
             exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
             exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
             exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
-            exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? true;
+            exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? false;
             exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? true;
 
             exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
