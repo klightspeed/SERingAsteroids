@@ -311,6 +311,19 @@ namespace SERingAsteroids
             var players = new List<IMyPlayer>();
             MyAPIGateway.Players.GetPlayers(players);
 
+            var gridBlocks = new Dictionary<long, List<IMySlimBlock>>();
+
+            foreach (var entity in entities)
+            {
+                if (entity is IMyCubeGrid)
+                {
+                    var grid = (IMyCubeGrid)entity;
+                    var blocks = new List<IMySlimBlock>();
+                    grid.GetBlocks(blocks);
+                    gridBlocks[grid.EntityId] = blocks;
+                }
+            }
+
             MyAPIGateway.Parallel.StartBackground(() =>
             {
                 _processing = true;
@@ -330,7 +343,7 @@ namespace SERingAsteroids
                         AddAsteroidsToSector(sector);
                     }
 
-                    OrderPendingAsteroidsByDistance(entitySectors, players);
+                    OrderPendingAsteroidsByDistance(entitySectors, gridBlocks, players);
 
                     if (persistentVoxelMapCount != _lastPersistentVoxelMapCount)
                     {
@@ -919,11 +932,11 @@ namespace SERingAsteroids
             return sectorsToProcess.ToList();
         }
 
-        private void OrderPendingAsteroidsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors, List<IMyPlayer> players)
+        private void OrderPendingAsteroidsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors, Dictionary<long, List<IMySlimBlock>> gridBlocks, List<IMyPlayer> players)
         {
             HashSet<long> playerControlledEntities = GetPlayerControlledEntities(players);
 
-            GetVoxelsByDistance(entitySectors, playerControlledEntities);
+            GetVoxelsByDistance(entitySectors, gridBlocks, playerControlledEntities);
 
             var visdist = MyAPIGateway.Session.SessionSettings.ViewDistance;
             var syncdist = MyAPIGateway.Session.SessionSettings.SyncDistance;
@@ -1105,7 +1118,7 @@ namespace SERingAsteroids
             return playerControlledEntities;
         }
 
-        private void GetVoxelsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors, HashSet<long> playerControlledEntities)
+        private void GetVoxelsByDistance(Dictionary<Vector2I, List<IMyEntity>> entitySectors, Dictionary<long, List<IMySlimBlock>> gridBlocks, HashSet<long> playerControlledEntities)
         {
             var voxelDistances = new List<MyTuple<ProceduralVoxelDetails, double, double>>();
 
@@ -1166,7 +1179,7 @@ namespace SERingAsteroids
                     {
                         if (entity is IMyCubeGrid && !entity.Closed)
                         {
-                            GetGridDistance(playerControlledEntities, voxelCreate, ref voxeldist, ref voxeldistfromplayer, entity);
+                            GetGridDistance(playerControlledEntities, gridBlocks, voxelCreate, ref voxeldist, ref voxeldistfromplayer, entity);
                         }
                         else
                         {
@@ -1247,7 +1260,7 @@ namespace SERingAsteroids
             }
         }
 
-        private static void GetGridDistance(HashSet<long> playerControlledEntities, ProceduralVoxelDetails voxelCreate, ref double voxeldist, ref double voxeldistfromplayer, IMyEntity entity)
+        private static void GetGridDistance(HashSet<long> playerControlledEntities, Dictionary<long, List<IMySlimBlock>> gridBlocks, ProceduralVoxelDetails voxelCreate, ref double voxeldist, ref double voxeldistfromplayer, IMyEntity entity)
         {
             var grid = (IMyCubeGrid)entity;
             var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
@@ -1258,8 +1271,25 @@ namespace SERingAsteroids
 
             if (distsq < voxeldist * voxeldist || (distsq < voxeldistfromplayer * voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId)))
             {
-                var blocks = new List<IMySlimBlock>();
-                grid.GetBlocks(blocks);
+                List<IMySlimBlock> blocks;
+
+                if (!gridBlocks.TryGetValue(grid.EntityId, out blocks))
+                {
+                    blocks = new List<IMySlimBlock>();
+
+                    for (int retries = 3; ; retries--)
+                    {
+                        try
+                        {
+                            grid.GetBlocks(blocks);
+                            break;
+                        }
+                        catch (Exception) when (retries > 0)
+                        {
+                        }
+                    }
+                }
+
                 var mingriddistsq = long.MaxValue;
                 var mingriddistfromplayersq = long.MaxValue;
 
@@ -1273,7 +1303,9 @@ namespace SERingAsteroids
                         mingriddistsq = vecdistsq;
                     }
 
-                    if (block.FatBlock != null && playerControlledEntities.Contains(block.FatBlock.EntityId) && vecdistsq < mingriddistfromplayersq)
+                    var fatblock = block.FatBlock;
+
+                    if (fatblock != null && playerControlledEntities.Contains(fatblock.EntityId) && vecdistsq < mingriddistfromplayersq)
                     {
                         mingriddistfromplayersq = vecdistsq;
                     }
