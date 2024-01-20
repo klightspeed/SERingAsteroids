@@ -158,6 +158,7 @@ namespace SERingAsteroids
             _reloadRequired = false;
 
             var config = RingConfig.GetRingConfig(_planet, this);
+
             SessionComponent.AddOrUpdateShownRing(config);
 
             if (config.EarlyLog == true || config.Enabled == true)

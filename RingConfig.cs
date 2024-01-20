@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using VRage.Game.ModAPI;
+using VRage.Serialization;
 using VRage.Utils;
 using VRageMath;
 
@@ -356,7 +357,10 @@ namespace SERingAsteroids
 
         public static RingConfig GetRingConfig(MyPlanet planet, RingAsteroidsComponent component)
         {
-            PlanetRingComponents[planet.StorageName] = component;
+            if (component != null)
+            {
+                PlanetRingComponents[planet.StorageName] = component;
+            }
 
             var ringConfig = new RingConfig();
 
@@ -562,49 +566,118 @@ namespace SERingAsteroids
             ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
             ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
 
-            var exampleConfig = ringConfig.Clone();
-            exampleConfig.PlanetName = planet.StorageName;
-            exampleConfig.ModId = modid;
-            exampleConfig.Enabled = exampleConfig.Enabled ?? false;
-            exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
-            exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
-            exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
-            exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
-            exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
-            exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? false;
-            exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? true;
-
-            if (exampleConfig.RingInnerRadius < exampleConfig.SectorSize * 4)
-                exampleConfig.RingInnerRadius = exampleConfig.SectorSize * 4;
-
-            if (exampleConfig.RingOuterRadius < exampleConfig.RingInnerRadius + exampleConfig.SectorSize * 4)
-                exampleConfig.RingOuterRadius = exampleConfig.RingInnerRadius + exampleConfig.SectorSize * 4;
-
-            exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
-
-            exampleConfig.RingCentre = null;
-
-            using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(configFileName + ".example", typeof(RingAsteroidsComponent)))
+            if (component != null)
             {
-                writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleConfig));
-            }
+                var exampleConfig = ringConfig.Clone();
+                exampleConfig.PlanetName = planet.StorageName;
+                exampleConfig.ModId = modid;
+                exampleConfig.Enabled = exampleConfig.Enabled ?? false;
+                exampleConfig.Vanilla = exampleConfig.Vanilla ?? (modid == null);
+                exampleConfig.SizeExponent = exampleConfig.SizeExponent ?? 2.0;
+                exampleConfig.IncludePlanetNameInRandomSeed = exampleConfig.IncludePlanetNameInRandomSeed ?? true;
+                exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
+                exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
+                exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? false;
+                exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? true;
 
-            using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("ringDefaults.xml.example", typeof(RingAsteroidsComponent)))
-            {
-                var exampleDefaultConfig = GlobalDefault.Clone();
-                exampleDefaultConfig.Enabled = null;
-                exampleDefaultConfig.PlanetName = null;
-                exampleDefaultConfig.ModId = null;
-                exampleDefaultConfig.Vanilla = null;
-                exampleDefaultConfig.RingCentre = null;
-                exampleDefaultConfig.RingZones = null;
+                if (exampleConfig.RingInnerRadius < exampleConfig.SectorSize * 4)
+                    exampleConfig.RingInnerRadius = exampleConfig.SectorSize * 4;
 
-                writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleDefaultConfig));
+                if (exampleConfig.RingOuterRadius < exampleConfig.RingInnerRadius + exampleConfig.SectorSize * 4)
+                    exampleConfig.RingOuterRadius = exampleConfig.RingInnerRadius + exampleConfig.SectorSize * 4;
+
+                exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
+
+                exampleConfig.RingCentre = null;
+
+                using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(configFileName + ".example", typeof(RingAsteroidsComponent)))
+                {
+                    writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleConfig));
+                }
+
+                using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage("ringDefaults.xml.example", typeof(RingAsteroidsComponent)))
+                {
+                    var exampleDefaultConfig = GlobalDefault.Clone();
+                    exampleDefaultConfig.Enabled = null;
+                    exampleDefaultConfig.PlanetName = null;
+                    exampleDefaultConfig.ModId = null;
+                    exampleDefaultConfig.Vanilla = null;
+                    exampleDefaultConfig.RingCentre = null;
+                    exampleDefaultConfig.RingZones = null;
+
+                    writer.Write(MyAPIGateway.Utilities.SerializeToXML(exampleDefaultConfig));
+                }
             }
 
             ringConfig.RingCentre = planet.PositionComp.GetPosition();
 
             return ringConfig;
+        }
+
+        public static void CommitRingConfig(RingConfig config)
+        {
+            string filename;
+
+            config = config.Clone();
+
+            if (config.PlanetName == null)
+            {
+                config.ModId = null;
+                config.Vanilla = null;
+                config.PlanetRadius = null;
+                config.RingInclination = null;
+                config.RingCentre = null;
+                config.RingZones = null;
+                config.RingInnerRadius = null;
+                config.RingOuterRadius = null;
+                config.RingHeight = null;
+                config.RingLongitudeAscendingNode = null;
+                config.Enabled = null;
+
+                SBCStoredDefaultConfig = config.Clone();
+                filename = "ringDefaults.xml";
+            }
+            else
+            {
+                var defconfig = SBCStoredDefaultConfig;
+
+                config.RingCentre = null;
+
+                if (config.DebugDrawRingBounds == defconfig?.DebugDrawRingBounds) config.DebugDrawRingBounds = null;
+                if (config.DisableAsteroidCleanup == defconfig?.DisableAsteroidCleanup) config.DisableAsteroidCleanup = null;
+                if (config.DisablePhysicsIfOutOfRange == defconfig?.DisablePhysicsIfOutOfRange) config.DisablePhysicsIfOutOfRange = null;
+                if (config.DisableReducedSaveDistance == defconfig?.DisableReducedSaveDistance) config.DisableReducedSaveDistance = null;
+                if (config.EarlyLog == defconfig?.EarlyLog) config.EarlyLog = null;
+                if (config.EntityMovementThreshold == defconfig?.EntityMovementThreshold) config.EntityMovementThreshold = null;
+                if (config.ExclusionZoneSize == defconfig?.ExclusionZoneSize) config.ExclusionZoneSize = null;
+                if (config.ExclusionZoneSizeMult == defconfig?.ExclusionZoneSizeMult) config.ExclusionZoneSizeMult = null;
+                if (config.IncludePlanetNameInRandomSeed == defconfig?.IncludePlanetNameInRandomSeed) config.IncludePlanetNameInRandomSeed = null;
+                if (config.LogDebug == defconfig?.LogDebug) config.LogDebug = null;
+                if (config.MaxAsteroidSize == defconfig?.MaxAsteroidSize) config.MaxAsteroidSize = null;
+                if (config.MaxAsteroidsPerSector == defconfig?.MaxAsteroidsPerSector) config.MaxAsteroidsPerSector = null;
+                if (config.MinAsteroidSize == defconfig?.MinAsteroidSize) config.MinAsteroidSize = null;
+                if (config.SectorSize == defconfig?.SectorSize) config.SectorSize = null;
+                if (config.SizeExponent == defconfig?.SizeExponent) config.SizeExponent = null;
+                if (config.TaperRingEdge == defconfig?.TaperRingEdge) config.TaperRingEdge = null;
+                if (config.VoxelGeneratorVersion == defconfig?.VoxelGeneratorVersion) config.VoxelGeneratorVersion = null;
+
+                AddOrUpdateSBCStoredConfig(config.Clone());
+                filename = $"{config.PlanetName}.xml";
+            }
+
+            lock (StoredConfigs)
+            {
+                if (StoredConfigs.ContainsKey(filename))
+                {
+                    StoredConfigs[filename] = config;
+
+                    using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+                    {
+                        writer.Write(MyAPIGateway.Utilities.SerializeToXML(config));
+                    }
+                }
+            }
+            
         }
 
         private static bool ReadConfig(string configFileName, out RingConfig config)
@@ -673,10 +746,14 @@ namespace SERingAsteroids
             ["thres"] = "entitymovementthreshold",
             ["szexp"] = "sizeexponent",
             ["xzsiz"] = "exclusionzonesize",
-            ["xzmul"] = "exclusionzonesizemult"
+            ["xzmul"] = "exclusionzonesizemult",
+            ["pnseed"] = "includeplanetnameinrandomseed",
+            ["noclean"] = "disableasteroidcleanup",
+            ["norsave"] = "disablereducedsavedistance",
+            ["limitphys"] = "disablephysicsifoutofrange"
         };
 
-        public static void UpdateConfig(RingConfig config, string propname, string strvalue, MyPlanet planet = null, IMyPlayer player = null)
+        public static void UpdateConfig(RingConfig config, string propname, string strvalue, MyPlanet planet = null, IMyPlayer player = null, RingZone zone = null)
         {
             propname = propname.ToLowerInvariant();
             propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
@@ -720,54 +797,72 @@ namespace SERingAsteroids
 
             if (boolval != null || string.IsNullOrEmpty(strvalue))
             {
-                if (propname.StartsWith("zone"))
+                switch (propname.ToLowerInvariant())
                 {
-                    var propParts = propname.Split('.');
-                    var propAt = propParts[0].Split('@');
-
+                    case "taperringedge": config.TaperRingEdge = boolval; break;
+                    case "enabled": config.Enabled = boolval; break;
+                    case "earlylog": config.EarlyLog = boolval; break;
+                    case "logdebug": config.LogDebug = boolval; break;
+                    case "includeplanetnameinrandomseed": config.IncludePlanetNameInRandomSeed = boolval; break;
+                    case "disableasteroidcleanup": config.DisableAsteroidCleanup = boolval; break;
+                    case "disablereducedsavedistance": config.DisableReducedSaveDistance = boolval; break;
+                    case "disablephysicsifoutofrange": config.DisablePhysicsIfOutOfRange = boolval; break;
                 }
-                else
+
+                if (zone != null)
                 {
                     switch (propname.ToLowerInvariant())
                     {
-                        case "taperringedge": config.TaperRingEdge = boolval; break;
-                        case "enabled": config.Enabled = boolval; break;
-                        case "earlylog": config.EarlyLog = boolval; break;
-                        case "logdebug": config.LogDebug = boolval; break;
+                        case "taperedge": zone.TaperEdges = boolval; break;
                     }
                 }
             }
 
             if (doubleval != null || string.IsNullOrEmpty(strvalue))
             {
-                if (propname.StartsWith("zone"))
+                switch (propname.ToLowerInvariant())
                 {
-
+                    case "ringouterradius": config.RingOuterRadius = doubleval; break;
+                    case "ringinnerradius": config.RingInnerRadius = doubleval; break;
+                    case "ringheight": config.RingHeight = doubleval; break;
+                    case "sectorsize": config.SectorSize = doubleval; break;
+                    case "maxasteroidspersector": config.MaxAsteroidsPerSector = (int?)doubleval; break;
+                    case "ringlongitudeascendingnode": config.RingLongitudeAscendingNode = doubleval; break;
+                    case "ringinclination": config.RingInclination = doubleval; break;
+                    case "minasteroidsize": config.MinAsteroidSize = doubleval; break;
+                    case "maxasteroidsize": config.MaxAsteroidSize = doubleval; break;
+                    case "entitymovementthreshold": config.EntityMovementThreshold = doubleval; break;
+                    case "sizeexponent": config.SizeExponent = doubleval; break;
+                    case "exclusionzonesize": config.ExclusionZoneSize = doubleval; break;
+                    case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
                 }
-                else
+
+                if (zone != null && doubleval != null)
                 {
                     switch (propname.ToLowerInvariant())
                     {
-                        case "ringouterradius": config.RingOuterRadius = doubleval; break;
-                        case "ringinnerradius": config.RingInnerRadius = doubleval; break;
-                        case "ringheight": config.RingHeight = doubleval; break;
-                        case "sectorsize": config.SectorSize = doubleval; break;
-                        case "maxasteroidspersector": config.MaxAsteroidsPerSector = (int?)doubleval; break;
-                        case "ringlongitudeascendingnode": config.RingLongitudeAscendingNode = doubleval; break;
-                        case "ringinclination": config.RingInclination = doubleval; break;
-                        case "minasteroidsize": config.MinAsteroidSize = doubleval; break;
-                        case "maxasteroidsize": config.MaxAsteroidSize = doubleval; break;
-                        case "entitymovementthreshold": config.EntityMovementThreshold = doubleval; break;
-                        case "sizeexponent": config.SizeExponent = doubleval; break;
-                        case "exclusionzonesize": config.ExclusionZoneSize = doubleval; break;
-                        case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
+                        case "zoneouterradius": zone.OuterRadius = doubleval.Value; break;
+                        case "zoneinnerradius": zone.InnerRadius = doubleval.Value; break;
+                    }
+                }
+
+                if (zone != null)
+                {
+                    switch (propname.ToLowerInvariant())
+                    {
+                        case "zoneringheight": zone.RingHeight = doubleval; break;
+                        case "zoneouterringheight": zone.OuterRingHeight = doubleval; break;
+                        case "zoneinnerringheight": zone.InnerRingHeight = doubleval; break;
+                        case "zoneminasteroidsize": zone.MinAsteroidSize = doubleval; break;
+                        case "zonemaxasteroidsize": zone.MaxAsteroidSize = doubleval; break;
+                        case "zonemaxasteroidspersector": zone.MaxAsteroidsPerSector = (int?)doubleval; break;
                     }
                 }
             }
 
             if (relvector != null)
             {
-
+                // TODO
             }
         }
 
