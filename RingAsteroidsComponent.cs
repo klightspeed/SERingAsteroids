@@ -1260,7 +1260,7 @@ namespace SERingAsteroids
             }
         }
 
-        private static void GetGridDistance(HashSet<long> playerControlledEntities, Dictionary<long, List<IMySlimBlock>> gridBlocks, ProceduralVoxelDetails voxelCreate, ref double voxeldist, ref double voxeldistfromplayer, IMyEntity entity)
+        private void GetGridDistance(HashSet<long> playerControlledEntities, Dictionary<long, List<IMySlimBlock>> gridBlocks, ProceduralVoxelDetails voxelCreate, ref double voxeldist, ref double voxeldistfromplayer, IMyEntity entity)
         {
             var grid = (IMyCubeGrid)entity;
             var gridpos = grid.WorldToGridInteger(voxelCreate.Position);
@@ -1284,10 +1284,18 @@ namespace SERingAsteroids
                             grid.GetBlocks(blocks);
                             break;
                         }
-                        catch (Exception) when (retries > 0)
+                        catch (Exception ex) when (retries > 0)
                         {
+                            Log($"Error enumerating grid blocks: {ex.Message} - retrying");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Error enumerating grid blocks: {ex.Message} - aborting grid block enumeration");
+                            return;
                         }
                     }
+
+                    gridBlocks[grid.EntityId] = blocks;
                 }
 
                 var mingriddistsq = long.MaxValue;
