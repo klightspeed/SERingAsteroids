@@ -12,6 +12,7 @@ using VRage.Utils;
 using Sandbox.Game.Entities;
 using VRage.ModAPI;
 using System.Text;
+using Sandbox.Engine.Utils;
 
 namespace SERingAsteroids
 {
@@ -430,6 +431,15 @@ namespace SERingAsteroids
                     if (config.PlanetName == _RequestedRing)
                     {
                         _EditingRing = config;
+
+                        if (_RequestedRing == null)
+                        {
+                            MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Editing ring config defaults");
+                        }
+                        else
+                        {
+                            MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Editing ring config for planet {_RequestedRing}");
+                        }
                     }
                 }
             }
@@ -650,13 +660,29 @@ namespace SERingAsteroids
                 RequestRingFromServer(arg);
                 return;
             }
+            else if (cmd == "deselect")
+            {
+                _DrawRings.Clear();
+                _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
+                _EditingRing = null;
+                _EditingRingPlanet = null;
+                _EditingZone = null;
+                return;
+            }
 
             if (_EditingRing == null || _EditingRing.PlanetName == null || _RequestedRing == null)
             {
-                MyAPIGateway.Utilities.ShowMessage("RingAsteroids", "No planet selected");
-                MyAPIGateway.Utilities.ShowMessage("RingAsteroids", "Use /ringast select [PlanetName] to select a ring");
+                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "No planet selected");
+                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Use /ringast select [PlanetName] to select a ring");
                 return;
             }
+
+            if (_EditingRing == null || _EditingRingPlanet == null)
+            {
+                return;
+            }
+
+            var filename = $"{_EditingRingPlanet.StorageName}.xml.editing";
 
             if (cmd == "addzone")
             {
@@ -673,10 +699,25 @@ namespace SERingAsteroids
             }
             else if (cmd == "commit")
             {
+                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Committing ring settings");
                 CommitRingToServer();
             }
+            else if (cmd == "loadlocal" && MyAPIGateway.Utilities.FileExistsInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+            {
+                using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+                {
+                    _EditingRing = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd());
+                }
+            }
+            else
+            {
+                RingConfig.UpdateConfig(_EditingRing, cmd, arg, _EditingRingPlanet, MyAPIGateway.Session.LocalHumanPlayer);
+            }
 
-            RingConfig.UpdateConfig(_EditingRing, cmd, arg, _EditingRingPlanet, MyAPIGateway.Session.LocalHumanPlayer);
+            using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+            {
+                writer.Write(MyAPIGateway.Utilities.SerializeToXML(_EditingRing));
+            }
 
             _DrawRings.Clear();
 
