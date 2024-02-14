@@ -546,6 +546,7 @@ namespace SERingAsteroids
             ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
             ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
             ringConfig.SectorSize = ringConfig.SectorSize ?? 10000;
+            ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector ?? 50;
             ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
             ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
 
