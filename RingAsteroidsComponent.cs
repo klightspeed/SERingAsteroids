@@ -667,6 +667,8 @@ namespace SERingAsteroids
 
             if (overlap != null && overlap.EntityId == _planet.EntityId)
             {
+                overlap = null;
+
                 foreach (var voxel in _voxelMaps.Values)
                 {
                     var radius = voxel.WorldVolume.Radius;
@@ -698,7 +700,14 @@ namespace SERingAsteroids
 
             if (overlap != null)
             {
-                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}] with radius {overlap.WorldVolume.Radius} at {overlap.PositionComp.GetPosition()}");
+                var radius = overlap.WorldVolume.Radius;
+
+                if (overlap is MyPlanet)
+                {
+                    radius = ((MyPlanet)overlap).AtmosphereRadius;
+                }
+
+                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped asteroid {overlap.EntityId} [{overlap.GetType().Name}: {overlap.StorageName}] with radius {radius} at {overlap.PositionComp.GetPosition()}");
             }
             else if (overlapPending != null)
             {
