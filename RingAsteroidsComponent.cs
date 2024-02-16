@@ -260,7 +260,7 @@ namespace SERingAsteroids
             Vector2I ringSector = default(Vector2I);
 
             var radius_sq = ringXZPosition.LengthSquared();
-            var innerRad = _ringInnerRadius - 75000;
+            var innerRad = Math.Max(_ringInnerRadius - 75000, 0);
             var outerRad = _ringOuterRadius + 75000;
             var ringHeight = _ringHeight + 75000;
 
