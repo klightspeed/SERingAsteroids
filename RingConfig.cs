@@ -233,6 +233,18 @@ namespace SERingAsteroids
                 RingHeight = 1000.0,
                 SectorSize = 10000.0,
                 MaxAsteroidsPerSector = 10
+            },
+            new RingConfig
+            {
+                PlanetName = "Salus",
+                PlanetRadius = 60000,
+                RingLongitudeAscendingNode = -6.75,
+                RingInclination = 6.785,
+                RingInnerRadius = 89400.0,
+                RingOuterRadius = 130000.0,
+                RingHeight = 1000.0,
+                SectorSize = 10000.0,
+                MaxAsteroidsPerSector = 10
             }
         };
 
