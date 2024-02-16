@@ -542,10 +542,10 @@ namespace SERingAsteroids
 
             ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? planet.MaximumRadius * 1.25;
             ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? planet.MaximumRadius * 2;
-            ringConfig.RingHeight = ringConfig.RingHeight ?? 2000;
+            ringConfig.RingHeight = ringConfig.RingHeight ?? (planet.MaximumRadius < 20000 ? 1000 : 2000);
             ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
             ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
-            ringConfig.SectorSize = ringConfig.SectorSize ?? 10000;
+            ringConfig.SectorSize = ringConfig.SectorSize ?? (planet.MaximumRadius < 20000 ? 5000 : 10000);
             ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector ?? 50;
             ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
             ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
@@ -561,6 +561,12 @@ namespace SERingAsteroids
             exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
             exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? false;
             exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? true;
+
+            if (exampleConfig.RingInnerRadius < exampleConfig.SectorSize * 4)
+                exampleConfig.RingInnerRadius = exampleConfig.SectorSize * 4;
+
+            if (exampleConfig.RingOuterRadius < exampleConfig.RingInnerRadius + exampleConfig.SectorSize * 4)
+                exampleConfig.RingOuterRadius = exampleConfig.RingInnerRadius + exampleConfig.SectorSize * 4;
 
             exampleConfig.RingZones = exampleConfig.RingZones ?? new List<RingZone>();
 
