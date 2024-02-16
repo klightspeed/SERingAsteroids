@@ -304,24 +304,33 @@ namespace SERingAsteroids
                 ReloadConfig();
             }
 
-            var entities = MyAPIGateway.Entities.GetTopMostEntitiesInBox(ref _ringBoundingBox);
+            List<IMyEntity> entities;
             var voxelmaps = new List<IMyVoxelBase>();
-            MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
-
             var players = new List<IMyPlayer>();
-            MyAPIGateway.Players.GetPlayers(players);
-
             var gridBlocks = new Dictionary<long, List<IMySlimBlock>>();
 
-            foreach (var entity in entities)
+            try
             {
-                if (entity is IMyCubeGrid)
+                entities = MyAPIGateway.Entities.GetTopMostEntitiesInBox(ref _ringBoundingBox);
+                MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
+                MyAPIGateway.Players.GetPlayers(players);
+
+                foreach (var entity in entities)
                 {
-                    var grid = (IMyCubeGrid)entity;
-                    var blocks = new List<IMySlimBlock>();
-                    grid.GetBlocks(blocks);
-                    gridBlocks[grid.EntityId] = blocks;
+                    if (entity is IMyCubeGrid)
+                    {
+                        var grid = (IMyCubeGrid)entity;
+                        var blocks = new List<IMySlimBlock>();
+                        grid.GetBlocks(blocks);
+                        gridBlocks[grid.EntityId] = blocks;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Log($"##MOD: Ring asteroid error: {ex}");
+                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error: {ex}");
+                return;
             }
 
             MyAPIGateway.Parallel.StartBackground(() =>
