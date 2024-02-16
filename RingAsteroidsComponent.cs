@@ -1143,7 +1143,7 @@ namespace SERingAsteroids
                 }
 
                 seccentre = Vector3D.Transform(seccentre, _ringMatrix);
-                var mindist = sectorsByDistance.Min(e => e.Item2);
+                var mindist = sectorsByDistance.Count == 0 ? double.MaxValue : sectorsByDistance.Min(e => e.Item2);
 
                 foreach (var tuple in sectorsByDistance)
                 {
