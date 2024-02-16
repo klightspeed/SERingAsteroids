@@ -658,7 +658,23 @@ namespace SERingAsteroids
 
             if (overlap != null && overlap.EntityId == _planet.EntityId)
             {
-                overlap = _voxelMaps.Values.FirstOrDefault(e => (e.PositionComp.GetPosition() - voxelDetails.Position).LengthSquared() < Math.Pow(overlapRadius + e.WorldVolume.Radius, 2));
+                foreach (var voxel in _voxelMaps.Values)
+                {
+                    var radius = voxel.WorldVolume.Radius;
+
+                    if (voxel is MyPlanet)
+                    {
+                        radius = ((MyPlanet)voxel).AtmosphereRadius;
+                    }
+
+                    var distsq = (voxel.PositionComp.GetPosition() - voxelDetails.Position).LengthSquared();
+
+                    if (distsq < Math.Pow(overlapRadius + radius, 2))
+                    {
+                        overlap = voxel;
+                        break;
+                    }
+                }
             }
 
             ProceduralVoxelDetails overlapPending = null;
@@ -673,11 +689,11 @@ namespace SERingAsteroids
 
             if (overlap != null)
             {
-                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}] at {overlap.PositionComp.GetPosition()}");
+                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped asteroid {overlap.EntityId} [{overlap.StorageName}] with radius {overlap.WorldVolume.Radius} at {overlap.PositionComp.GetPosition()}");
             }
             else if (overlapPending != null)
             {
-                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped just added asteroid {overlapPending.Name} at {overlapPending.Position}");
+                LogDebug($"Asteroid {voxelDetails.Name} at {voxelDetails.Position} Overlapped just added asteroid {overlapPending.Name} with size {overlapPending.Size} at {overlapPending.Position}");
             }
             else
             {
