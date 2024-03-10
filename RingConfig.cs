@@ -637,6 +637,10 @@ namespace SERingAsteroids
                 SBCStoredDefaultConfig = config.Clone();
                 filename = "ringDefaults.xml";
             }
+            else if (SessionComponent.DisallowedPlanetNameCharacters.Any(c => config.PlanetName.Contains(c)))
+            {
+                return;
+            }
             else
             {
                 var defconfig = SBCStoredDefaultConfig;

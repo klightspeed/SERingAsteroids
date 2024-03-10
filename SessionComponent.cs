@@ -27,6 +27,8 @@ namespace SERingAsteroids
         public static int VoxelAddQueueLength => _VoxelsToAdd.Count;
         public static int VoxelDelQueueLength => _VoxelsToDelete.Count;
 
+        public static readonly char[] DisallowedPlanetNameCharacters = "/\\:<>\"|?*".ToCharArray();
+
         private static readonly Queue<ProceduralVoxelDetails> _VoxelsToAdd = new Queue<ProceduralVoxelDetails>();
         private static readonly Queue<ProceduralVoxelDetails> _VoxelsToDelete = new Queue<ProceduralVoxelDetails>();
         private bool _IsInitialized;
@@ -582,6 +584,8 @@ namespace SERingAsteroids
             }
             else
             {
+                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Requesting ring data for planet {planetName} from server");
+
                 var ringreq = new RingRequest { PlanetName = planetName };
                 var reqdata = MyAPIGateway.Utilities.SerializeToBinary(ringreq);
                 reqdata = MyCompression.Compress(reqdata);
@@ -660,29 +664,27 @@ namespace SERingAsteroids
                 RequestRingFromServer(arg);
                 return;
             }
-            else if (cmd == "deselect")
+            else if (cmd == "deselect" || cmd == "close")
             {
-                _DrawRings.Clear();
-                _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
-                _EditingRing = null;
-                _EditingRingPlanet = null;
-                _EditingZone = null;
+                MyAPIGateway.Utilities.ShowNotification("De-selecting ring");
+                DeselectRing();
+                return;
+            }
+            else if (_EditingRing != null && _EditingRing.PlanetName != null && DisallowedPlanetNameCharacters.Any(c => _EditingRing.PlanetName.Contains(c)))
+            {
+                MyAPIGateway.Utilities.ShowNotification("Disallowed character in ring planet name - de-selecting ring");
+                DeselectRing();
                 return;
             }
 
-            if (_EditingRing == null || _EditingRing.PlanetName == null || _RequestedRing == null)
+            if (_EditingRing == null)
             {
-                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "No planet selected");
+                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "No ring data selected");
                 MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Use /ringast select [PlanetName] to select a ring");
                 return;
             }
 
-            if (_EditingRing == null || _EditingRingPlanet == null)
-            {
-                return;
-            }
-
-            var filename = $"{_EditingRingPlanet.StorageName}.xml.editing";
+            var filename = $"{_EditingRing.PlanetName ?? "ringDefaults"}.xml.editing";
 
             if (cmd == "addzone")
             {
@@ -697,13 +699,20 @@ namespace SERingAsteroids
                 _EditingRing.RingZones?.Remove(_EditingZone);
                 _EditingZone = null;
             }
-            else if (cmd == "commit")
+            else if (cmd == "commit" || cmd == "save")
             {
-                MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Committing ring settings");
+                MyAPIGateway.Utilities.ShowNotification("Committing ring settings");
                 CommitRingToServer();
+
+                if (arg != null && (arg == "deselect" || arg == "close"))
+                {
+                    DeselectRing();
+                }
             }
             else if (cmd == "loadlocal" && MyAPIGateway.Utilities.FileExistsInWorldStorage(filename, typeof(RingAsteroidsComponent)))
             {
+                MyAPIGateway.Utilities.ShowNotification("Loading ring settings from local world storage");
+
                 using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
                 {
                     _EditingRing = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd());
@@ -729,6 +738,15 @@ namespace SERingAsteroids
             {
                 _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
             }
+        }
+
+        private void DeselectRing()
+        {
+            _DrawRings.Clear();
+            _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
+            _EditingRing = null;
+            _EditingRingPlanet = null;
+            _EditingZone = null;
         }
     }
 }
