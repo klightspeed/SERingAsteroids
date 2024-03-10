@@ -759,6 +759,18 @@ namespace SERingAsteroids
 
         public static void UpdateConfig(RingConfig config, string propname, string strvalue, MyPlanet planet = null, IMyPlayer player = null, RingZone zone = null)
         {
+            if (config == null)
+            {
+                MyLog.Default.WriteLineAndConsole($"##MOD: RingConfig.UpdateConfig: Config is null");
+                return;
+            }
+
+            if (propname == null)
+            {
+                MyLog.Default.WriteLineAndConsole($"##MOD: RingConfig.UpdateConfig: propname is null");
+                return;
+            }
+
             propname = propname.ToLowerInvariant();
             propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
 
@@ -791,7 +803,7 @@ namespace SERingAsteroids
                 relvector = playerpos - planetpos;
                 lookvector = player.Character.AimedPoint;
             }
-            else if (strvalue.ToLowerInvariant()?.StartsWith("@s") == true && planet != null && camera != null)
+            else if (strvalue?.ToLowerInvariant()?.StartsWith("@s") == true && planet != null && camera != null)
             {
                 var camerapos = camera.Position;
                 var planetpos = planet.PositionComp.GetPosition();

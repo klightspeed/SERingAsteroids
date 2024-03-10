@@ -573,12 +573,15 @@ namespace SERingAsteroids
 
             if (MyAPIGateway.Multiplayer.IsServer)
             {
-                if (planetName == "@default")
+
+                if (planetName == "@defaults")
                 {
+                    MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Editing ring defaults");
                     _EditingRing = RingConfig.SBCStoredDefaultConfig.Clone();
                 }
                 else
                 {
+                    MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Editing ring data for planet {planetName}");
                     _EditingRing = RingConfig.GetRingConfig(planet, null);
                 }
             }
