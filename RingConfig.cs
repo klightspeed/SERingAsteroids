@@ -679,7 +679,13 @@ namespace SERingAsteroids
                     writer.Write(MyAPIGateway.Utilities.SerializeToXML(config));
                 }
             }
-            
+
+            RingAsteroidsComponent component;
+
+            if (PlanetRingComponents.TryGetValue(config.PlanetName, out component))
+            {
+                component.RequestReload();
+            }
         }
 
         private static bool ReadConfig(string configFileName, out RingConfig config)
