@@ -768,9 +768,24 @@ namespace SERingAsteroids
 
         private void DeselectRing()
         {
-            if (_EditingRing != null && _EditingRing.PlanetName != null && _EditingRing.DebugDrawRingBounds != true)
+            var config = _EditingRing;
+
+            if (config != null && config.PlanetName != null)
             {
-                RemoveShownRing(_EditingRing.PlanetName);
+                if (config.DebugDrawRingBounds != true || !MyAPIGateway.Multiplayer.IsServer)
+                {
+                    RemoveShownRing(config.PlanetName);
+                }
+
+                if (!DisallowedPlanetNameCharacters.Any(c => config.PlanetName.Contains(c)))
+                {
+                    var filename = $"{(config.PlanetName == "@defaults" ? "ringDefaults" : config.PlanetName)}.xml.editing";
+
+                    if (MyAPIGateway.Utilities.FileExistsInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+                    {
+                        MyAPIGateway.Utilities.DeleteFileInWorldStorage(filename, typeof(RingAsteroidsComponent));
+                    }
+                }
             }
 
             _EditingRing = null;
