@@ -13,6 +13,7 @@ using Sandbox.Game.Entities;
 using VRage.ModAPI;
 using System.Text;
 using Sandbox.Engine.Utils;
+using System.IO;
 
 namespace SERingAsteroids
 {
@@ -39,6 +40,26 @@ namespace SERingAsteroids
         private RingZone _EditingZone = null;
         private MyPlanet _EditingRingPlanet = null;
         private string _RequestedRing = null;
+        private TextWriter _logfile;
+        private string _logfilename;
+
+        private readonly object _loggerLock = new object();
+
+        private void Log(string str)
+        {
+            lock (_loggerLock)
+            {
+                if (_logfile == null)
+                {
+                    _logfilename = $"{typeof(SessionComponent).Name}-{DateTime.Now:yyyyMMddHHmmss}.log";
+                    _logfile = MyAPIGateway.Utilities.WriteFileInLocalStorage(_logfilename, typeof(SessionComponent));
+                }
+
+                _logfile.WriteLine(str);
+                _logfile.Flush();
+            }
+        }
+
 
         public override void SaveData()
         {
@@ -427,10 +448,12 @@ namespace SERingAsteroids
                     }
                     catch (Exception ex)
                     {
+                        Log($"##MOD: RingAsteroids: Error deserializing ring config from player with SteamID {steamId}: {ex}");
                         MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Error deserializing ring config from player with SteamID {steamId}: {ex}");
                         return;
                     }
 
+                    Log($"##MOD: RingAsteroids: Received RINGUPD from player with SteamID {steamId} for planet {config.PlanetName}");
                     MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Received RINGUPD from player with SteamID {steamId} for planet {config.PlanetName}");
 
                     List<IMyPlayer> players = new List<IMyPlayer>();
@@ -445,11 +468,13 @@ namespace SERingAsteroids
                         }
                         else
                         {
+                            Log($"##MOD: RingAsteroids: Player with SteamID {steamId} is not space master; current rank: {player.PromoteLevel}");
                             MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Player with SteamID {steamId} is not space master; current rank: {player.PromoteLevel}");
                         }
                     }
                     else
                     {
+                        Log($"##MOD: RingAsteroids: Player with SteamID {steamId} not found");
                         MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Player with SteamID {steamId} not found");
                     }
                 }
@@ -459,6 +484,7 @@ namespace SERingAsteroids
                 if (msgtype == "RINGDATA")
                 {
                     var config = MyAPIGateway.Utilities.SerializeFromBinary<RingConfig>(reqdata);
+                    config.RingZones = config.RingZones ?? new List<RingZone>();
 
                     if (config.PlanetName == _RequestedRing)
                     {
