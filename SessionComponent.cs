@@ -496,7 +496,7 @@ namespace SERingAsteroids
             {
                 var camerapos = camera.Position;
                 var planetsByDistance = new SortedList<double, MyPlanet>();
-                var lookvector = camera.ProjectionMatrix.Forward;
+                var lookvector = camera.WorldMatrix.Forward;
                 var nearestDist = double.MaxValue;
 
                 foreach (var p in planets)
