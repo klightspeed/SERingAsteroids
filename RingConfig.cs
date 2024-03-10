@@ -556,12 +556,12 @@ namespace SERingAsteroids
                 }
             }
 
-            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? planet.MaximumRadius * 1.25;
-            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? planet.MaximumRadius * 2;
             ringConfig.RingHeight = ringConfig.RingHeight ?? (planet.MaximumRadius < 20000 ? 1000 : 2000);
             ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
             ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
             ringConfig.SectorSize = ringConfig.SectorSize ?? (planet.MaximumRadius < 20000 ? 5000 : 10000);
+            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? Math.Ceiling(planet.MaximumRadius * 1.25 / ringConfig.SectorSize.Value) * ringConfig.SectorSize;
+            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? Math.Ceiling(planet.MaximumRadius * 2 / ringConfig.SectorSize.Value) * ringConfig.SectorSize;
             ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector ?? 50;
             ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
             ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
