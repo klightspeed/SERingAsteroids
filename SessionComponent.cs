@@ -469,6 +469,7 @@ namespace SERingAsteroids
                 if (planet != null)
                 {
                     config = RingConfig.GetRingConfig(planet, null);
+                    config.PlanetName = req.PlanetName;
                 }
             }
 
@@ -590,6 +591,7 @@ namespace SERingAsteroids
                 {
                     MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Editing ring data for planet {planetName}");
                     config = RingConfig.GetRingConfig(planet, null);
+                    config.PlanetName = planetName;
                 }
 
                 UpdateEditingRing(config);
