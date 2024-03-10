@@ -47,6 +47,8 @@ namespace SERingAsteroids
         protected override void UnloadData()
         {
             Unloading = true;
+            MyAPIGateway.Utilities.MessageEnteredSender -= Utilities_MessageEnteredSender;
+            MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(NETWORK_ID, MessageHandler);
         }
 
         public static void AddOrUpdateShownRing(RingConfig config)
