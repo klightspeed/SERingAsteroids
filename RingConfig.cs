@@ -620,8 +620,9 @@ namespace SERingAsteroids
 
             config = config.Clone();
 
-            if (config.PlanetName == null)
+            if (config.PlanetName == "@defaults")
             {
+                config.PlanetName = null;
                 config.ModId = null;
                 config.Vanilla = null;
                 config.PlanetRadius = null;

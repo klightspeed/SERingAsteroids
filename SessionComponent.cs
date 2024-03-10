@@ -60,7 +60,7 @@ namespace SERingAsteroids
                 config.SectorSize != null &&
                 config.RingZones != null &&
                 config.PlanetName != null &&
-                config.DebugDrawRingBounds == true)
+                config.PlanetName != "@defaults")
             {
                 var sectorSize = config.SectorSize.Value;
                 var ringInnerRadius = Math.Floor(config.RingInnerRadius.Value / sectorSize + 0.5) * sectorSize;
@@ -434,9 +434,9 @@ namespace SERingAsteroids
 
                     if (config.PlanetName == _RequestedRing)
                     {
-                        _EditingRing = config;
+                        UpdateEditingRing(config);
 
-                        if (_RequestedRing == null)
+                        if (_RequestedRing == "@defaults")
                         {
                             MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Editing ring config defaults");
                         }
@@ -456,6 +456,7 @@ namespace SERingAsteroids
             if (req.PlanetName == "@defaults")
             {
                 config = RingConfig.SBCStoredDefaultConfig;
+                config.PlanetName = "@defaults";
             }
             else
             {
@@ -500,16 +501,12 @@ namespace SERingAsteroids
                 var planetsByDistance = new SortedList<double, MyPlanet>();
                 var lookvector = camera.WorldMatrix.Forward;
                 var nearestDist = double.MaxValue;
+                var nearestToCentre = double.MaxValue;
 
                 foreach (var p in planets)
                 {
                     var relpos = p.PositionComp.GetPosition() - camerapos;
                     var surfacedist = relpos.Length() - p.AtmosphereRadius;
-
-                    if (surfacedist > nearestDist)
-                    {
-                        continue;
-                    }
 
                     if (arg == "@lookat")
                     {
@@ -522,10 +519,16 @@ namespace SERingAsteroids
 
                         var r = Math.Sqrt(relpos.LengthSquared() - dot * dot);
 
-                        if (r > p.AtmosphereRadius)
+                        if (r / p.AverageRadius > nearestToCentre || (surfacedist > nearestDist && nearestToCentre < 1))
                         {
                             continue;
                         }
+
+                        nearestToCentre = r / p.AtmosphereRadius;
+                    }
+                    else if (surfacedist > nearestDist)
+                    {
+                        continue;
                     }
 
                     planet = p;
@@ -575,17 +578,21 @@ namespace SERingAsteroids
 
             if (MyAPIGateway.Multiplayer.IsServer)
             {
+                RingConfig config;
 
                 if (planetName == "@defaults")
                 {
                     MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Editing ring defaults");
-                    _EditingRing = RingConfig.SBCStoredDefaultConfig.Clone();
+                    config = RingConfig.SBCStoredDefaultConfig.Clone();
+                    config.PlanetName = "@defaults";
                 }
                 else
                 {
                     MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Editing ring data for planet {planetName}");
-                    _EditingRing = RingConfig.GetRingConfig(planet, null);
+                    config = RingConfig.GetRingConfig(planet, null);
                 }
+
+                UpdateEditingRing(config);
             }
             else
             {
@@ -664,8 +671,11 @@ namespace SERingAsteroids
             var cmd = msgparts[1];
             var arg = msgparts.Length == 3 ? msgparts[2] : null;
 
+            var config = _EditingRing;
+
             if (cmd == "select")
             {
+                DeselectRing();
                 RequestRingFromServer(arg);
                 return;
             }
@@ -675,21 +685,19 @@ namespace SERingAsteroids
                 DeselectRing();
                 return;
             }
-            else if (_EditingRing != null && _EditingRing.PlanetName != null && DisallowedPlanetNameCharacters.Any(c => _EditingRing.PlanetName.Contains(c)))
+            else if (config != null && config.PlanetName != null && DisallowedPlanetNameCharacters.Any(c => config.PlanetName.Contains(c)))
             {
                 MyAPIGateway.Utilities.ShowNotification("Disallowed character in ring planet name - de-selecting ring");
                 DeselectRing();
                 return;
             }
 
-            if (_EditingRing == null)
+            if (config == null)
             {
                 MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "No ring data selected");
                 MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Use /ringast select [PlanetName] to select a ring");
                 return;
             }
-
-            var filename = $"{_EditingRing.PlanetName ?? "ringDefaults"}.xml.editing";
 
             if (cmd == "addzone")
             {
@@ -701,7 +709,7 @@ namespace SERingAsteroids
             }
             else if (cmd == "delzone" && _EditingZone != null)
             {
-                _EditingRing.RingZones?.Remove(_EditingZone);
+                config.RingZones?.Remove(_EditingZone);
                 _EditingZone = null;
             }
             else if (cmd == "commit" || cmd == "save")
@@ -714,41 +722,54 @@ namespace SERingAsteroids
                     DeselectRing();
                 }
             }
-            else if (cmd == "loadlocal" && MyAPIGateway.Utilities.FileExistsInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+            else if (cmd == "loadlocal")
             {
-                MyAPIGateway.Utilities.ShowNotification("Loading ring settings from local world storage");
+                var filename = $"{(config.PlanetName == "@defaults" ? "ringDefaults" : config.PlanetName)}.xml.editing";
 
-                using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+                if (MyAPIGateway.Utilities.FileExistsInWorldStorage(filename, typeof(RingAsteroidsComponent)))
                 {
-                    _EditingRing = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd());
+                    MyAPIGateway.Utilities.ShowNotification("Loading ring settings from local world storage");
+
+                    using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+                    {
+                        config = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(reader.ReadToEnd());
+                    }
                 }
             }
             else
             {
-                RingConfig.UpdateConfig(_EditingRing, cmd, arg, _EditingRingPlanet, MyAPIGateway.Session.LocalHumanPlayer);
+                RingConfig.UpdateConfig(config, cmd, arg, _EditingRingPlanet, MyAPIGateway.Session.LocalHumanPlayer);
             }
+
+            UpdateEditingRing(config);
+        }
+
+        private void UpdateEditingRing(RingConfig config)
+        {
+            if (DisallowedPlanetNameCharacters.Any(c => config.PlanetName.Contains(c)))
+            {
+                return;
+            }
+
+            _EditingRing = config;
+
+            var filename = $"{(config.PlanetName == "@defaults" ? "ringDefaults" : config.PlanetName)}.xml.editing";
 
             using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
             {
-                writer.Write(MyAPIGateway.Utilities.SerializeToXML(_EditingRing));
+                writer.Write(MyAPIGateway.Utilities.SerializeToXML(config));
             }
 
-            _DrawRings.Clear();
-
-            if (_EditingRing.DebugDrawRingBounds == true)
-            {
-                AddOrUpdateShownRing(_EditingRing);
-            }
-            else
-            {
-                _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
-            }
+            AddOrUpdateShownRing(config);
         }
 
         private void DeselectRing()
         {
-            _DrawRings.Clear();
-            _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
+            if (_EditingRing != null && _EditingRing.PlanetName != null && _EditingRing.DebugDrawRingBounds != true)
+            {
+                RemoveShownRing(_EditingRing.PlanetName);
+            }
+
             _EditingRing = null;
             _EditingRingPlanet = null;
             _EditingZone = null;
