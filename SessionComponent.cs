@@ -722,6 +722,7 @@ namespace SERingAsteroids
                 if (arg != null && (arg == "deselect" || arg == "close"))
                 {
                     DeselectRing();
+                    return;
                 }
             }
             else if (cmd == "loadlocal")
