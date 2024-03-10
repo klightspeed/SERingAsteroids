@@ -419,6 +419,20 @@ namespace SERingAsteroids
                 }
                 else if (msgtype == "RINGUPD\0")
                 {
+                    RingConfig config;
+
+                    try
+                    {
+                        config = MyAPIGateway.Utilities.SerializeFromBinary<RingConfig>(reqdata);
+                    }
+                    catch (Exception ex)
+                    {
+                        MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Error deserializing ring config from player with SteamID {steamId}: {ex}");
+                        return;
+                    }
+
+                    MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Received RINGUPD from player with SteamID {steamId} for planet {config.PlanetName}");
+
                     List<IMyPlayer> players = new List<IMyPlayer>();
                     MyAPIGateway.Multiplayer.Players.GetPlayers(players, p => p.SteamUserId == steamId);
 
@@ -427,9 +441,16 @@ namespace SERingAsteroids
                         var player = players[0];
                         if (player.PromoteLevel >= MyPromoteLevel.SpaceMaster)
                         {
-                            var config = MyAPIGateway.Utilities.SerializeFromBinary<RingConfig>(reqdata);
                             RingConfig.CommitRingConfig(config);
                         }
+                        else
+                        {
+                            MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Player with SteamID {steamId} is not space master; current rank: {player.PromoteLevel}");
+                        }
+                    }
+                    else
+                    {
+                        MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Player with SteamID {steamId} not found");
                     }
                 }
             }

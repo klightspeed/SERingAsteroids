@@ -672,14 +672,11 @@ namespace SERingAsteroids
 
             lock (StoredConfigs)
             {
-                if (StoredConfigs.ContainsKey(filename))
-                {
-                    StoredConfigs[filename] = config;
+                StoredConfigs[filename] = config;
 
-                    using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
-                    {
-                        writer.Write(MyAPIGateway.Utilities.SerializeToXML(config));
-                    }
+                using (var writer = MyAPIGateway.Utilities.WriteFileInWorldStorage(filename, typeof(RingAsteroidsComponent)))
+                {
+                    writer.Write(MyAPIGateway.Utilities.SerializeToXML(config));
                 }
             }
             
