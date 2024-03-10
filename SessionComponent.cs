@@ -32,6 +32,7 @@ namespace SERingAsteroids
         private static readonly Queue<ProceduralVoxelDetails> _VoxelsToAdd = new Queue<ProceduralVoxelDetails>();
         private static readonly Queue<ProceduralVoxelDetails> _VoxelsToDelete = new Queue<ProceduralVoxelDetails>();
         private bool _IsInitialized;
+        private bool _ShowHelpRequested;
         private static readonly Dictionary<string, RingConfig> _DrawRings = new Dictionary<string, RingConfig>();
         private static List<MyTuple<MyQuadD, Color>> _DrawnRingQuads = new List<MyTuple<MyQuadD, Color>>();
         private RingConfig _EditingRing = null;
@@ -386,6 +387,12 @@ namespace SERingAsteroids
                     voxelCountProcessed++;
                 }
             }
+
+            if (_ShowHelpRequested)
+            {
+                _ShowHelpRequested = false;
+                DisplayHelp();
+            }
         }
 
         private void MessageHandler(ushort handlerId, byte[] msgdata, ulong steamId, bool fromServer)
@@ -487,6 +494,9 @@ namespace SERingAsteroids
 
         private void RequestRingFromServer(string arg)
         {
+            if (arg == null)
+                return;
+
             var player = MyAPIGateway.Session.LocalHumanPlayer;
             var camera = MyAPIGateway.Session.Camera;
             string planetName = null;
@@ -496,7 +506,7 @@ namespace SERingAsteroids
             MyAPIGateway.Session.VoxelMaps.GetInstances(voxelMaps);
             var planets = voxelMaps.OfType<MyPlanet>().ToList();
 
-            if (arg == "@lookat" || arg == "@nearest")
+            if (arg.StartsWith("@l") || arg.StartsWith("@n"))
             {
                 var camerapos = camera.Position;
                 var planetsByDistance = new SortedList<double, MyPlanet>();
@@ -509,7 +519,7 @@ namespace SERingAsteroids
                     var relpos = p.PositionComp.GetPosition() - camerapos;
                     var surfacedist = relpos.Length() - p.AtmosphereRadius;
 
-                    if (arg == "@lookat")
+                    if (arg.StartsWith("@l"))
                     {
                         var dot = Vector3D.Dot(relpos, lookvector);
 
@@ -543,7 +553,7 @@ namespace SERingAsteroids
                     return;
                 }
             }
-            else if (arg == "@defaults")
+            else if (arg.StartsWith("@d"))
             {
                 planetName = "@defaults";
             }
@@ -635,7 +645,105 @@ namespace SERingAsteroids
 
         private void DisplayHelp()
         {
-            // TODO
+            MyAPIGateway.Utilities.ShowMissionScreen(
+                "Ring Asteroid Commands",
+                null,
+                null,
+                "Help: Available commands\n" +
+                "- /ringast select @defaults\n" +
+                "    Select the ring defaults for editing\n" +
+                "\n" +
+                "- /ringast select @nearest\n" +
+                "    Select the ring of the nearest planet to the player or spectator camera for editing\n" +
+                "\n" +
+                "- /ringast select @lookat\n" +
+                "    Select the ring of the planet in the crosshairs of the player or specatator camera for editing\n" +
+                "\n" +
+                "- /ringast select [PlanetName]\n" +
+                "    Select the ring of the planet with the given [PlanetName] for editing\n" +
+                "\n" +
+                "- /ringast deselect\n" +
+                "- /ringast close\n" +
+                "    Deselect the ring\n" +
+                "\n" +
+                "- /ringast commit {deselect|close}\n" +
+                "- /ringast save {deselect|close}\n" +
+                "    Commit the changes made to the selected ring.  Optionally follow with [deselect] or [close] to deselect the ring.\n" +
+                "\n" +
+                "- /ringast loadlocal\n" +
+                "- /ringast ll\n" +
+                "    Loads the ring configuration from the [.xml.editing] file for the ring being edited from the mod world storage on the local computer.\n" +
+                "\n" +
+                "- /ringast taperringedge {true|false|yes|no}\n" +
+                "- /ringast taper {true|false|yes|no}\n" +
+                "    Enables or disables tapering the ring edge\n" +
+                "\n" +
+                "- /ringast includeplanetnameinrandomseed {true|false|yes|no}\n" +
+                "- /ringast pnseed {true|false|yes|no}\n" +
+                "    Include the planet name in the sector seed used to generate asteroids\n" +
+                "\n" +
+                "- /ringast enabled {true|false|yes|no}\n" +
+                "- /ringast en {true|false|yes|no}\n" +
+                "    Enable or disable asteroid generation for this ring\n" +
+                "\n" +
+                "- /ringast logdebug {true|false|yes|no}\n" +
+                "- /ringast ld {true|false|yes|no}\n" +
+                "    Enable or disable debug logging for this ring\n" +
+                "\n" +
+                "- /ringast ringinnerradius [radius]\n" +
+                "- /ringast ir [radius]\n" +
+                "    Ring inner radius in metres. Accepts [k] or [km] suffix for kilometres\n" +
+                "\n" +
+                "- /ringast ringouterradius [radius]\n" +
+                "- /ringast or [radius]\n" +
+                "    Ring outer radius in metres. Accepts [k] or [km] suffix for kilometres\n" +
+                "\n" +
+                "- /ringast ringheight [height]\n" +
+                "- /ringast ht [height]\n" +
+                "    Distance between ring plane and upper / lower limit of ring. Accepts [k] or [km] suffix for kilometres\n" +
+                "\n" +
+                "- /ringast ringlongitudeascendingnode [degrees]\n" +
+                "- /ringast lan [degrees]\n" +
+                "    Longitude of ascending node (where the ring crosses the planet's equator going northwards)\n" +
+                "\n" +
+                "- /ringast ringinclination [degrees]\n" +
+                "- /ringast inc [degrees]\n" +
+                "    Inclination of ring to planet's equator\n" +
+                "\n" +
+                "- /ringast sectorsize [size]\n" +
+                "- /ringast secsz [size]\n" +
+                "    Ring sector size in metres. Accepts [k] or [km] suffix for kilometres\n" +
+                "\n" +
+                "- /ringast maxasteroidspersector [count]\n" +
+                "- /ringast maxpersec\n" +
+                "    Maximum asteroids per ring sector\n" +
+                "\n" +
+                "- /ringast minasteroidsize [size]\n" +
+                "- /ringast minsz [size]\n" +
+                "    Minimum asteroid size in metres\n" +
+                "\n" +
+                "- /ringast maxasteroidsize [size]\n" +
+                "- /ringast maxsz [size]\n" +
+                "    Maximum asteroid size in metres\n" +
+                "\n" +
+                "- /ringast entitymovementthreshold [dist]\n" +
+                "- /ringast entmov [dist]\n" +
+                "    Distance any grid or player needs to move before new sectors are considered for population with asteroids\n" +
+                "\n" +
+                "- /ringast sizeexponent [exponent]\n" +
+                "- /ringast szexp [exponent]\n" +
+                "    Size weighting exponent. Values larger than 1 prefer smaller sizes, while values smaller than 1 prefer larger sizes\n" +
+                "\n" +
+                "- /ringast exclusionzonesize [size]\n" +
+                "- /ringast xzsiz [size]\n" +
+                "    Minimum space around asteroid in metres to exclude other asteroids\n" +
+                "\n" +
+                "- /ringast exclusionzonesizemult [mult]\n" +
+                "- /ringast xzmul [mult]\n" +
+                "    Minimum space around asteroid as a multiple of its size to exclude other asteroids\n" +
+                "\n" +
+                "All of the above commands are case insensitive, and most also accept the shortest unique prefix."
+            );
         }
 
         private void AddRingZone(string arg)
@@ -666,7 +774,7 @@ namespace SERingAsteroids
 
             if (msgparts.Length < 2 || msgparts[1] == "help")
             {
-                DisplayHelp();
+                _ShowHelpRequested = true;
                 return;
             }
 
@@ -675,13 +783,13 @@ namespace SERingAsteroids
 
             var config = _EditingRing;
 
-            if (cmd == "select")
+            if (cmd.StartsWith("sel"))
             {
                 DeselectRing();
                 RequestRingFromServer(arg);
                 return;
             }
-            else if (cmd == "deselect" || cmd == "close")
+            else if (cmd.StartsWith("des") || cmd.StartsWith("cl"))
             {
                 MyAPIGateway.Utilities.ShowNotification("De-selecting ring");
                 DeselectRing();
@@ -701,31 +809,31 @@ namespace SERingAsteroids
                 return;
             }
 
-            if (cmd == "addzone")
+            if (cmd == "zoneadd" || cmd.StartsWith("za"))
             {
                 AddRingZone(arg);
             }
-            else if (cmd == "selzone")
+            else if (cmd.StartsWith("zonesel") || cmd.StartsWith("zsel"))
             {
                 SelectRingZone(arg);
             }
-            else if (cmd == "delzone" && _EditingZone != null)
+            else if ((cmd.StartsWith("zonedel") || cmd.StartsWith("zd")) && _EditingZone != null)
             {
                 config.RingZones?.Remove(_EditingZone);
                 _EditingZone = null;
             }
-            else if (cmd == "commit" || cmd == "save")
+            else if (cmd.StartsWith("com") || cmd.StartsWith("sav"))
             {
                 MyAPIGateway.Utilities.ShowNotification("Committing ring settings");
                 CommitRingToServer();
 
-                if (arg != null && (arg == "deselect" || arg == "close"))
+                if (arg != null && (arg.StartsWith("d") || arg.StartsWith("c")))
                 {
                     DeselectRing();
                     return;
                 }
             }
-            else if (cmd == "loadlocal")
+            else if (cmd.StartsWith("loadl") || cmd.StartsWith("ll"))
             {
                 var filename = $"{(config.PlanetName == "@defaults" ? "ringDefaults" : config.PlanetName)}.xml.editing";
 

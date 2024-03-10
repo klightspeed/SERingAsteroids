@@ -775,22 +775,34 @@ namespace SERingAsteroids
             propname = propname.ToLowerInvariant();
             propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
 
+            var propnames = PropNameShortestPrefixes.Values.Where(e => e.StartsWith(propname)).ToList();
+            if (propnames.Count == 1)
+            {
+                propname = propnames[0];
+            }
+
             bool? boolval = null;
             double? doubleval = null;
+            double dblmult = 1;
             double dblval;
             Vector3D? relvector = null;
             Vector3D? lookvector = null;
 
-            if (double.TryParse(strvalue, out dblval))
+            if (strvalue != null && double.TryParse(strvalue.TrimEnd('k', 'm'), out dblval))
             {
                 doubleval = dblval;
+
+                if (strvalue.EndsWith("k") || strvalue.EndsWith("km"))
+                {
+                    dblmult = 1000;
+                }
             }
 
-            if (strvalue?.ToLowerInvariant() == "yes" || strvalue?.ToLowerInvariant() == "true" || doubleval > 0)
+            if (strvalue?.ToLowerInvariant()?.StartsWith("y") == true || strvalue?.ToLowerInvariant()?.StartsWith("t") == true || doubleval > 0)
             {
                 boolval = true;
             }
-            else if (strvalue?.ToLowerInvariant() == "no" || strvalue?.ToLowerInvariant() == "false" || doubleval <= 0)
+            else if (strvalue?.ToLowerInvariant()?.StartsWith("n") == true || strvalue?.ToLowerInvariant()?.StartsWith("f") == true || doubleval <= 0)
             {
                 boolval = false;
             }
@@ -839,18 +851,18 @@ namespace SERingAsteroids
             {
                 switch (propname.ToLowerInvariant())
                 {
-                    case "ringouterradius": config.RingOuterRadius = doubleval; break;
-                    case "ringinnerradius": config.RingInnerRadius = doubleval; break;
-                    case "ringheight": config.RingHeight = doubleval; break;
-                    case "sectorsize": config.SectorSize = doubleval; break;
+                    case "ringouterradius": config.RingOuterRadius = doubleval * dblmult; break;
+                    case "ringinnerradius": config.RingInnerRadius = doubleval * dblmult; break;
+                    case "ringheight": config.RingHeight = doubleval * dblmult; break;
+                    case "sectorsize": config.SectorSize = doubleval * dblmult; break;
                     case "maxasteroidspersector": config.MaxAsteroidsPerSector = (int?)doubleval; break;
                     case "ringlongitudeascendingnode": config.RingLongitudeAscendingNode = doubleval; break;
                     case "ringinclination": config.RingInclination = doubleval; break;
-                    case "minasteroidsize": config.MinAsteroidSize = doubleval; break;
-                    case "maxasteroidsize": config.MaxAsteroidSize = doubleval; break;
+                    case "minasteroidsize": config.MinAsteroidSize = doubleval * dblmult; break;
+                    case "maxasteroidsize": config.MaxAsteroidSize = doubleval * dblmult; break;
                     case "entitymovementthreshold": config.EntityMovementThreshold = doubleval; break;
                     case "sizeexponent": config.SizeExponent = doubleval; break;
-                    case "exclusionzonesize": config.ExclusionZoneSize = doubleval; break;
+                    case "exclusionzonesize": config.ExclusionZoneSize = doubleval * dblmult; break;
                     case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
                 }
 
@@ -858,8 +870,8 @@ namespace SERingAsteroids
                 {
                     switch (propname.ToLowerInvariant())
                     {
-                        case "zoneouterradius": zone.OuterRadius = doubleval.Value; break;
-                        case "zoneinnerradius": zone.InnerRadius = doubleval.Value; break;
+                        case "zoneouterradius": zone.OuterRadius = doubleval.Value * dblmult; break;
+                        case "zoneinnerradius": zone.InnerRadius = doubleval.Value * dblmult; break;
                     }
                 }
 
@@ -867,11 +879,11 @@ namespace SERingAsteroids
                 {
                     switch (propname.ToLowerInvariant())
                     {
-                        case "zoneringheight": zone.RingHeight = doubleval; break;
-                        case "zoneouterringheight": zone.OuterRingHeight = doubleval; break;
-                        case "zoneinnerringheight": zone.InnerRingHeight = doubleval; break;
-                        case "zoneminasteroidsize": zone.MinAsteroidSize = doubleval; break;
-                        case "zonemaxasteroidsize": zone.MaxAsteroidSize = doubleval; break;
+                        case "zoneringheight": zone.RingHeight = doubleval * dblmult; break;
+                        case "zoneouterringheight": zone.OuterRingHeight = doubleval * dblmult; break;
+                        case "zoneinnerringheight": zone.InnerRingHeight = doubleval * dblmult; break;
+                        case "zoneminasteroidsize": zone.MinAsteroidSize = doubleval * dblmult; break;
+                        case "zonemaxasteroidsize": zone.MaxAsteroidSize = doubleval * dblmult; break;
                         case "zonemaxasteroidspersector": zone.MaxAsteroidsPerSector = (int?)doubleval; break;
                     }
                 }
