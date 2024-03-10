@@ -750,14 +750,17 @@ namespace SERingAsteroids
                         {
                             var delta = deltas[k];
 
-                            delta.X %= (delta.Y * 6);
-
-                            if (delta.X < 0)
+                            if (delta.Y > 0)
                             {
-                                delta.X += delta.Y * 6;
-                            }
+                                delta.X %= (delta.Y * 6);
 
-                            sectorsToProcess.Add(delta);
+                                if (delta.X < 0)
+                                {
+                                    delta.X += delta.Y * 6;
+                                }
+
+                                sectorsToProcess.Add(delta);
+                            }
                         }
                     }
                 }
