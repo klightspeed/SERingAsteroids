@@ -721,19 +721,26 @@ namespace SERingAsteroids
                 "    Loads the ring configuration from the .xml.editing file for the ring being edited from the mod world storage on the local computer.\n" +
                 "\n" +
                 "/ringast taperringedge {true|false|yes|no}\n" +
+                "/ringast notaperringedge\n" +
                 "/ringast taper {true|false|yes|no}\n" +
+                "/ringast notaper\n" +
                 "    Enables or disables tapering the ring edge\n" +
                 "\n" +
                 "/ringast includeplanetnameinrandomseed {true|false|yes|no}\n" +
+                "/ringast noincludeplanetnameinrandomseed\n" +
                 "/ringast pnseed {true|false|yes|no}\n" +
+                "/ringast nopnseed\n" +
                 "    Include the planet name in the sector seed used to generate asteroids\n" +
                 "\n" +
                 "/ringast enabled {true|false|yes|no}\n" +
-                "/ringast en {true|false|yes|no}\n" +
+                "/ringast noenabled\n" +
+                "/ringast disable\n" +
                 "    Enable or disable asteroid generation for this ring\n" +
                 "\n" +
                 "/ringast logdebug {true|false|yes|no}\n" +
+                "/ringast nologdebug\n" +
                 "/ringast ld {true|false|yes|no}\n" +
+                "/ringast nold\n" +
                 "    Enable or disable debug logging for this ring\n" +
                 "\n" +
                 "/ringast ringinnerradius [radius]\n" +

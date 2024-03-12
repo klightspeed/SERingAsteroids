@@ -731,25 +731,35 @@ namespace SERingAsteroids
         public static readonly Dictionary<string, string> PropNameShortestPrefixes = new Dictionary<string, string>
         {
             ["ena"] = "enabled",
+            ["dis"] = "disabled",
             ["ea"] = "earlylog",
             ["el"] = "earlylog",
             ["log"] = "logdebug",
             ["ld"] = "logdebug",
             ["taper"] = "taperringedge",
+            ["ztaper"] = "zonetaperedge",
             ["ringo"] = "ringouterradius",
             ["out"] = "ringouterradius",
             ["or"] = "ringouterradius",
+            ["zor"] = "zoneouterradius",
             ["ringi"] = "ringinnerradius",
             ["inn"] = "ringinnerradius",
             ["ir"] = "ringinnerradius",
+            ["zir"] = "zoneinnerradius",
             ["ringh"] = "ringheight",
             ["ht"] = "ringheight",
+            ["zh"] = "zoneringheight",
+            ["zih"] = "zoneinnerringheight",
+            ["zoh"] = "zoneouterringheight",
             ["secsz"] = "sectorsize",
             ["maxpersec"] = "maxasteroidspersector",
+            ["zmaxpersec"] = "zonemaxasteroidspersector",
             ["lan"] = "ringlongitudeascendingnode",
             ["inc"] = "ringinclination",
             ["minsz"] = "minasteroidsize",
             ["maxsz"] = "maxasteroidsize",
+            ["zminsz"] = "zoneminasteroidsize",
+            ["zmaxsz"] = "zonemaxasteroidsize",
             ["entmov"] = "entitymovementthreshold",
             ["thres"] = "entitymovementthreshold",
             ["szexp"] = "sizeexponent",
@@ -775,15 +785,6 @@ namespace SERingAsteroids
                 return;
             }
 
-            propname = propname.ToLowerInvariant();
-            propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
-
-            var propnames = PropNameShortestPrefixes.Values.Where(e => e.StartsWith(propname)).ToList();
-            if (propnames.Count == 1)
-            {
-                propname = propnames[0];
-            }
-
             bool? boolval = null;
             double? doubleval = null;
             double dblmult = 1;
@@ -801,13 +802,38 @@ namespace SERingAsteroids
                 }
             }
 
-            if (strvalue?.ToLowerInvariant()?.StartsWith("y") == true || strvalue?.ToLowerInvariant()?.StartsWith("t") == true || doubleval > 0)
+            if (strvalue?.ToLowerInvariant() == "null" || strvalue?.ToLowerInvariant()?.StartsWith("c") == true)
+            {
+                boolval = null;
+            }
+            else if (strvalue?.ToLowerInvariant()?.StartsWith("y") == true || strvalue?.ToLowerInvariant()?.StartsWith("t") == true || doubleval > 0)
             {
                 boolval = true;
             }
             else if (strvalue?.ToLowerInvariant()?.StartsWith("n") == true || strvalue?.ToLowerInvariant()?.StartsWith("f") == true || doubleval <= 0)
             {
                 boolval = false;
+            }
+            else if (strvalue == null)
+            {
+                if (propname.StartsWith("no"))
+                {
+                    boolval = false;
+                    propname = propname.Substring(2);
+                }
+                else
+                {
+                    boolval = true;
+                }
+            }
+
+            propname = propname.ToLowerInvariant();
+            propname = PropNameShortestPrefixes.OrderBy(e => e.Key).FirstOrDefault(e => propname.StartsWith(e.Key)).Value ?? propname;
+
+            var propnames = PropNameShortestPrefixes.Values.Where(e => e.StartsWith(propname)).ToList();
+            if (propnames.Count == 1)
+            {
+                propname = propnames[0];
             }
 
             var camera = MyAPIGateway.Session.Camera;
@@ -833,6 +859,7 @@ namespace SERingAsteroids
                 {
                     case "taperringedge": config.TaperRingEdge = boolval; break;
                     case "enabled": config.Enabled = boolval; break;
+                    case "disabled": config.Enabled = !boolval; break;
                     case "earlylog": config.EarlyLog = boolval; break;
                     case "logdebug": config.LogDebug = boolval; break;
                     case "includeplanetnameinrandomseed": config.IncludePlanetNameInRandomSeed = boolval; break;
@@ -845,7 +872,7 @@ namespace SERingAsteroids
                 {
                     switch (propname.ToLowerInvariant())
                     {
-                        case "taperedge": zone.TaperEdges = boolval; break;
+                        case "zonetaperedge": zone.TaperEdges = boolval; break;
                     }
                 }
             }
