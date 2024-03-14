@@ -165,7 +165,7 @@ namespace SERingAsteroids
             }
             else
             {
-                SessionComponent.RemoveShownRing(config.PlanetName);
+                SessionComponent.RemoveShownRing(_planet.StorageName);
             }
 
             if (config.EarlyLog == true || config.Enabled == true)
