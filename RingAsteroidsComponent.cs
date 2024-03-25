@@ -55,6 +55,7 @@ namespace SERingAsteroids
         private bool _processing;
         private bool _reloadRequired;
         private int _lastPersistentVoxelMapCount;
+        private int _lastManagedVoxelMapCount;
 
         private readonly Queue<string> loglines = new Queue<string>();
         private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
@@ -316,6 +317,7 @@ namespace SERingAsteroids
             var voxelmaps = new List<IMyVoxelBase>();
             var players = new List<IMyPlayer>();
             var gridBlocks = new Dictionary<long, List<IMySlimBlock>>();
+            var processingStart = DateTime.UtcNow;
 
             try
             {
@@ -350,6 +352,7 @@ namespace SERingAsteroids
                     GetVoxelMaps(voxelmaps);
 
                     var persistentVoxelMapCount = _voxelMaps.Values.Count(e => e.Closed == false && e.Save == true);
+                    var managedVoxelMapCount = _voxelsByDistance.Select(e => e.Item1).Count(e => e.VoxelMap?.Closed == false);
 
                     Dictionary<Vector2I, List<IMyEntity>> entitySectors;
                     var sectorsToProcess = GetEntityMovements(entities, out entitySectors);
@@ -362,26 +365,42 @@ namespace SERingAsteroids
 
                     OrderPendingAsteroidsByDistance(entitySectors, gridBlocks, players);
 
-                    if (persistentVoxelMapCount != _lastPersistentVoxelMapCount)
+                    if (persistentVoxelMapCount != _lastPersistentVoxelMapCount ||
+                        managedVoxelMapCount < _lastManagedVoxelMapCount - 50 ||
+                        managedVoxelMapCount > _lastManagedVoxelMapCount + 50)
                     {
-                        LogDebug($"{persistentVoxelMapCount} persistent voxel maps in world");
+                        var voxelMapCount = _voxelMaps.Values.Count(e => e.Closed == false);
+
+                        MyLog.Default.Debug("RingAsteroidComponent: {0}: {1} persistent voxel maps in world ({2} total)", _planet.StorageName, persistentVoxelMapCount, voxelMapCount);
+                        LogDebug($"{persistentVoxelMapCount} persistent voxel maps in world ({voxelMapCount} total)");
 
                         var persistentManagedVoxelMapCount = _voxelsByDistance.Select(e => e.Item1).Count(e => e.VoxelMap?.Save == true && e.VoxelMap?.Closed == false);
-                        LogDebug($"{persistentManagedVoxelMapCount} persistent voxel maps managed by mod");
+                        MyLog.Default.Debug("RingAsteroidComponent: {0}: {1} persistent voxel maps managed by mod ({2} total)", _planet.StorageName, persistentManagedVoxelMapCount, managedVoxelMapCount);
+                        LogDebug($"{persistentManagedVoxelMapCount} persistent voxel maps managed by mod ({managedVoxelMapCount} total)");
 
                         var voxelMapsOutsideRange = _voxelsByDistance.Count(e => e.Item2 > 5000 && e.Item1.VoxelMap?.Save == true && e.Item1.VoxelMap?.Closed == false);
+                        MyLog.Default.Debug("RingAsteroidComponent: {0}: {1} persistent voxel maps outside 5km", _planet.StorageName, voxelMapsOutsideRange);
                         LogDebug($"{voxelMapsOutsideRange} persistent voxel maps outside 5km");
 
+                        var now = DateTime.UtcNow;
+                        var timeTaken = now - processingStart;
+
+                        MyLog.Default.Debug("RingAsteroidComponent: {0}: Processing took {1} seconds", _planet.StorageName, timeTaken.TotalSeconds);
+                        LogDebug($"Processing took {timeTaken.TotalSeconds} seconds");
+
                         _lastPersistentVoxelMapCount = persistentVoxelMapCount;
+                        _lastManagedVoxelMapCount = managedVoxelMapCount;
                     }
 
                     if (_addVoxelsByDistance.Count != 0)
                     {
+                        MyLog.Default.Debug("RingAsteroidComponent: {0}: {1} asteroids to add", _planet.StorageName, _addVoxelsByDistance.Count);
                         LogDebug($"{_addVoxelsByDistance.Count} asteroids to add");
                     }
 
                     if (_delVoxelsByDistance.Count != 0)
                     {
+                        MyLog.Default.Debug("RingAsteroidComponent: {0}: {1} asteroids to delete", _planet.StorageName, _delVoxelsByDistance.Count);
                         LogDebug($"{_delVoxelsByDistance.Count} asteroids to delete");
                     }
 
