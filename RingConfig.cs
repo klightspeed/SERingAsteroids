@@ -96,6 +96,18 @@ namespace SERingAsteroids
         [ProtoMember(27)]
         public bool? DisablePhysicsIfOutOfRange { get; set; }
 
+        [ProtoMember(28)]
+        public double? AsteroidSaveDistance { get; set; }
+
+        [ProtoMember(29)]
+        public double? AsteroidPlayerSpawnDistance { get; set; }
+
+        [ProtoMember(30)]
+        public double? AsteroidGridSpawnDistance { get; set; }
+
+        [ProtoMember(31)]
+        public double? AsteroidPhysicsDistance { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 
@@ -296,6 +308,10 @@ namespace SERingAsteroids
                 DisableAsteroidCleanup = DisableAsteroidCleanup,
                 DisableReducedSaveDistance = DisableReducedSaveDistance,
                 DisablePhysicsIfOutOfRange = DisablePhysicsIfOutOfRange,
+                AsteroidSaveDistance = AsteroidSaveDistance,
+                AsteroidPlayerSpawnDistance = AsteroidPlayerSpawnDistance,
+                AsteroidGridSpawnDistance = AsteroidGridSpawnDistance,
+                AsteroidPhysicsDistance = AsteroidPhysicsDistance,
             };
         }
 
@@ -507,6 +523,10 @@ namespace SERingAsteroids
                     ringConfig.DisableAsteroidCleanup     = ringConfig.DisableAsteroidCleanup     ?? config.DisableAsteroidCleanup;
                     ringConfig.DisableReducedSaveDistance = ringConfig.DisableReducedSaveDistance ?? config.DisableReducedSaveDistance;
                     ringConfig.DisablePhysicsIfOutOfRange = ringConfig.DisablePhysicsIfOutOfRange ?? config.DisablePhysicsIfOutOfRange;
+                    ringConfig.AsteroidSaveDistance       = ringConfig.AsteroidSaveDistance       ?? config.AsteroidSaveDistance;
+                    ringConfig.AsteroidPlayerSpawnDistance= ringConfig.AsteroidPlayerSpawnDistance ?? config.AsteroidPlayerSpawnDistance;
+                    ringConfig.AsteroidGridSpawnDistance  = ringConfig.AsteroidGridSpawnDistance  ?? config.AsteroidGridSpawnDistance;
+                    ringConfig.AsteroidPhysicsDistance    = ringConfig.AsteroidPhysicsDistance    ?? config.AsteroidPhysicsDistance;
 
                     if (config.PlanetName != null)
                         ringConfig.Enabled                = ringConfig.Enabled                    ?? config.Enabled;
@@ -768,7 +788,11 @@ namespace SERingAsteroids
             ["pnseed"] = "includeplanetnameinrandomseed",
             ["noclean"] = "disableasteroidcleanup",
             ["norsave"] = "disablereducedsavedistance",
-            ["limitphys"] = "disablephysicsifoutofrange"
+            ["limitphys"] = "disablephysicsifoutofrange",
+            ["pspawndist"] = "asteroidplayerspawndistance",
+            ["gspawndist"] = "asteroidgridspawndistance",
+            ["savedist"] = "asteroidsavedistance",
+            ["physdist"] = "asteroidphysicsdistance"
         };
 
         public static void UpdateConfig(RingConfig config, string propname, string strvalue, MyPlanet planet = null, IMyPlayer player = null, RingZone zone = null)
@@ -894,6 +918,10 @@ namespace SERingAsteroids
                     case "sizeexponent": config.SizeExponent = doubleval; break;
                     case "exclusionzonesize": config.ExclusionZoneSize = doubleval * dblmult; break;
                     case "exclusionzonesizemult": config.ExclusionZoneSizeMult = doubleval; break;
+                    case "asteroidsavedistance": config.AsteroidSaveDistance = doubleval * dblmult; break;
+                    case "asteroidplayerspawndistance": config.AsteroidPlayerSpawnDistance = doubleval * dblmult; break;
+                    case "asteroidgridspawndistance": config.AsteroidGridSpawnDistance = doubleval * dblmult; break;
+                    case "asteroidphysicsdistance": config.AsteroidPhysicsDistance = doubleval * dblmult; break;
                 }
 
                 if (zone != null && doubleval != null)

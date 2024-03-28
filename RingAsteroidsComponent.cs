@@ -56,6 +56,10 @@ namespace SERingAsteroids
         private bool _reloadRequired;
         private int _lastPersistentVoxelMapCount;
         private int _lastManagedVoxelMapCount;
+        private double _saveDistance;
+        private double _playerSpawnDistance;
+        private double _gridSpawnDistance;
+        private double _physicsDistance;
 
         private readonly Queue<string> loglines = new Queue<string>();
         private readonly Dictionary<long, Vector3D> _entityPositions = new Dictionary<long, Vector3D>();
@@ -222,6 +226,10 @@ namespace SERingAsteroids
             _disableCleanup = config.DisableAsteroidCleanup ?? false;
             _disableSaveLimit = config.DisableReducedSaveDistance ?? false;
             _limitPhysics = config.DisablePhysicsIfOutOfRange ?? false;
+            _saveDistance = config.AsteroidSaveDistance ?? MyAPIGateway.Session.SessionSettings.SyncDistance * 1.2;
+            _playerSpawnDistance = config.AsteroidPlayerSpawnDistance ?? MyAPIGateway.Session.SessionSettings.ViewDistance * 1.2;
+            _gridSpawnDistance = config.AsteroidGridSpawnDistance ?? 1200;
+            _physicsDistance = config.AsteroidPhysicsDistance ?? 1200;
 
             if (config.RingZones != null)
             {
@@ -1008,9 +1016,6 @@ namespace SERingAsteroids
 
             GetVoxelsByDistance(entitySectors, gridBlocks, playerControlledEntities);
 
-            var visdist = MyAPIGateway.Session.SessionSettings.ViewDistance;
-            var syncdist = MyAPIGateway.Session.SessionSettings.SyncDistance;
-
             var addVoxels = new Queue<MyTuple<ProceduralVoxelDetails, double, double>>();
             var delVoxels = new Stack<MyTuple<ProceduralVoxelDetails, double, double>>();
 
@@ -1026,24 +1031,24 @@ namespace SERingAsteroids
 
                     if (physics != null)
                     {
-                        if (distFromEntity > syncdist * 1.5 && physics.IsActive)
+                        if (distFromEntity > _physicsDistance * 1.25 && physics.IsActive)
                         {
                             physics.Enabled = false;
                         }
-                        else if (distFromEntity < syncdist * 1.2 && !physics.IsActive)
+                        else if (distFromEntity < _physicsDistance && !physics.IsActive)
                         {
                             physics.Enabled = true;
                         }
                     }
                 }
 
-                if ((voxelDetails.VoxelMap == null || voxelDetails.VoxelMap.Closed) && distFromEntity < visdist * 1.2 && !voxelDetails.AddPending && !voxelDetails.IsInhibited)
+                if ((voxelDetails.VoxelMap == null || voxelDetails.VoxelMap.Closed) && distFromEntity < _playerSpawnDistance && !voxelDetails.AddPending && !voxelDetails.IsInhibited)
                 {
                     if (distFromEntity <= 0)
                     {
                         voxelDetails.IsInhibited = true;
                     }
-                    else if (distFromEntity < syncdist * 1.2 || distFromPlayer < visdist * 1.2)
+                    else if (distFromEntity < _gridSpawnDistance || distFromPlayer < _playerSpawnDistance)
                     {
                         voxelDetails.IsModified = false;
                         addVoxels.Enqueue(tuple);
@@ -1051,7 +1056,7 @@ namespace SERingAsteroids
                 }
                 else if (!_disableCleanup && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
                 {
-                    if (voxelDetails.VoxelMap.Save && distFromEntity > syncdist * 1.5)
+                    if (voxelDetails.VoxelMap.Save && distFromEntity > _saveDistance * 1.25)
                     {
                         if (IsVoxelMapModified(voxelDetails))
                         {
@@ -1063,16 +1068,16 @@ namespace SERingAsteroids
                             LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=false (Dist={distFromEntity} Sector={voxelDetails.Sector})");
                             voxelDetails.VoxelMap.Save = false;
                         }
-                        else if (distFromPlayer > visdist * 1.5)
+                        else if (distFromPlayer > _playerSpawnDistance * 1.25)
                         {
                             delVoxels.Push(tuple);
                         }
                     }
-                    else if (distFromEntity > syncdist * 1.5 && distFromPlayer > visdist * 1.5)
+                    else if (distFromEntity > _gridSpawnDistance * 1.25 && distFromPlayer > _playerSpawnDistance * 1.25)
                     {
                         delVoxels.Push(tuple);
                     }
-                    else if (voxelDetails.VoxelMap.Save == false && distFromEntity < syncdist * 1.2)
+                    else if (voxelDetails.VoxelMap.Save == false && distFromEntity < _saveDistance)
                     {
                         LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity} Sector={voxelDetails.Sector})");
                         voxelDetails.VoxelMap.Save = true;
