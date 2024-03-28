@@ -1258,7 +1258,7 @@ namespace SERingAsteroids
                         }
                         else
                         {
-                            var relpos = _entityPositions[entity.EntityId] - voxelCreate.Position;
+                            var relpos = voxelCreate.Position - _entityPositions[entity.EntityId];
                             var dist = relpos.Length();
                             var physics = entity.Physics;
 
@@ -1354,7 +1354,7 @@ namespace SERingAsteroids
             var maxpos = grid.Max;
             var minpos = grid.Min;
             var nearestcorner = Vector3I.Clamp(gridpos, grid.Min, grid.Max);
-            var relpos = grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position;
+            var relpos = voxelCreate.Position - grid.GridIntegerToWorld(nearestcorner);
             var dist = relpos.Length();
             var physics = entity.Physics;
 
@@ -1480,7 +1480,7 @@ namespace SERingAsteroids
 
                 if (jumpTarget != null)
                 {
-                    relpos = jumpTarget.Value - voxelCreate.Position;
+                    relpos = voxelCreate.Position - jumpTarget.Value;
                     dist = relpos.Length();
 
                     if (physics != null && dist > voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
