@@ -1258,7 +1258,19 @@ namespace SERingAsteroids
                         }
                         else
                         {
-                            var dist = (_entityPositions[entity.EntityId] - voxelCreate.Position).Length();
+                            var relpos = _entityPositions[entity.EntityId] - voxelCreate.Position;
+                            var dist = relpos.Length();
+                            var physics = entity.Physics;
+
+                            if (physics != null && dist > 1)
+                            {
+                                var speed = Vector3D.Dot(relpos, physics.LinearVelocity) * 10 / dist;
+
+                                if (speed > 0)
+                                {
+                                    dist -= speed;
+                                }
+                            }
 
                             if (entity.LocalVolume.Radius > 0)
                             {
@@ -1342,69 +1354,123 @@ namespace SERingAsteroids
             var maxpos = grid.Max;
             var minpos = grid.Min;
             var nearestcorner = Vector3I.Clamp(gridpos, grid.Min, grid.Max);
-            var distsq = (grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position).LengthSquared();
+            var relpos = grid.GridIntegerToWorld(nearestcorner) - voxelCreate.Position;
+            var dist = relpos.Length();
+            var physics = entity.Physics;
 
-            if (distsq < voxeldist * voxeldist || (distsq < voxeldistfromplayer * voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId)))
+            if (physics != null && dist > voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
             {
-                List<IMySlimBlock> blocks;
+                var speed = Vector3D.Dot(relpos, physics.LinearVelocity) * 10 / dist;
 
-                if (!gridBlocks.TryGetValue(grid.EntityId, out blocks))
+                if (speed > 0)
                 {
-                    blocks = new List<IMySlimBlock>();
+                    dist -= speed;
 
-                    for (int retries = 3; ; retries--)
+                    if (dist < voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
                     {
-                        try
+                        dist = voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1;
+                    }
+                }
+            }
+
+            if (dist < voxeldist || (dist < voxeldistfromplayer && playerControlledEntities.Contains(entity.EntityId)))
+            {
+                var gridsize = (maxpos - minpos).Length();
+
+                if (dist < gridsize * 5)
+                {
+                    List<IMySlimBlock> blocks;
+
+                    if (!gridBlocks.TryGetValue(grid.EntityId, out blocks))
+                    {
+                        blocks = new List<IMySlimBlock>();
+
+                        for (int retries = 3; ; retries--)
                         {
-                            grid.GetBlocks(blocks);
-                            break;
+                            try
+                            {
+                                grid.GetBlocks(blocks);
+                                break;
+                            }
+                            catch (Exception ex) when (retries > 0)
+                            {
+                                Log($"Error enumerating grid blocks: {ex.Message} - retrying");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log($"Error enumerating grid blocks: {ex.Message} - aborting grid block enumeration");
+                                return;
+                            }
                         }
-                        catch (Exception ex) when (retries > 0)
+
+                        gridBlocks[grid.EntityId] = blocks;
+                    }
+
+                    var mingriddistsq = long.MaxValue;
+                    var mingriddistfromplayersq = long.MaxValue;
+
+                    foreach (var block in blocks)
+                    {
+                        var vec = (block.Position - gridpos);
+                        var vecdistsq = (long)vec.X * vec.X + (long)vec.Y * vec.Y + (long)vec.Z * vec.Z;
+
+                        if (vecdistsq < mingriddistsq)
                         {
-                            Log($"Error enumerating grid blocks: {ex.Message} - retrying");
+                            mingriddistsq = vecdistsq;
                         }
-                        catch (Exception ex)
+
+                        var fatblock = block.FatBlock;
+
+                        if (fatblock != null && playerControlledEntities.Contains(fatblock.EntityId) && vecdistsq < mingriddistfromplayersq)
                         {
-                            Log($"Error enumerating grid blocks: {ex.Message} - aborting grid block enumeration");
-                            return;
+                            mingriddistfromplayersq = vecdistsq;
                         }
                     }
 
-                    gridBlocks[grid.EntityId] = blocks;
-                }
+                    var mingriddist = grid.GridSize * Math.Sqrt(mingriddistsq);
+                    var mingriddistfromplayer = grid.GridSize * Math.Sqrt(mingriddistfromplayersq);
 
-                var mingriddistsq = long.MaxValue;
-                var mingriddistfromplayersq = long.MaxValue;
-
-                foreach (var block in blocks)
-                {
-                    var vec = (block.Position - gridpos);
-                    var vecdistsq = (long)vec.X * vec.X + (long)vec.Y * vec.Y + (long)vec.Z * vec.Z;
-
-                    if (vecdistsq < mingriddistsq)
+                    if (physics != null && mingriddist > voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
                     {
-                        mingriddistsq = vecdistsq;
+                        mingriddist -= physics.Speed * 10;
+
+                        if (mingriddist < voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
+                        {
+                            mingriddist = voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1;
+                        }
                     }
 
-                    var fatblock = block.FatBlock;
-
-                    if (fatblock != null && playerControlledEntities.Contains(fatblock.EntityId) && vecdistsq < mingriddistfromplayersq)
+                    if (physics != null && mingriddistfromplayer > voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
                     {
-                        mingriddistfromplayersq = vecdistsq;
+                        mingriddistfromplayer -= physics.Speed * 10;
+
+                        if (mingriddistfromplayer < voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
+                        {
+                            mingriddistfromplayer = voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1;
+                        }
+                    }
+
+                    if (mingriddist < voxeldist)
+                    {
+                        voxeldist = mingriddist;
+                    }
+
+                    if (mingriddistfromplayer < voxeldistfromplayer)
+                    {
+                        voxeldistfromplayer = mingriddistfromplayer;
                     }
                 }
-
-                var mingriddist = grid.GridSize * Math.Sqrt(mingriddistsq);
-                var mingriddistfromplayer = grid.GridSize * Math.Sqrt(mingriddistfromplayersq);
-
-                if (mingriddist < voxeldist)
+                else
                 {
-                    voxeldist = mingriddist;
-                }
+                    if (dist < voxeldist)
+                    {
+                        voxeldist = dist;
+                    }
 
-                if (mingriddistfromplayer < voxeldistfromplayer)
-                {
-                    voxeldistfromplayer = mingriddistfromplayer;
+                    if (dist < voxeldistfromplayer)
+                    {
+                        voxeldistfromplayer = dist;
+                    }
                 }
             }
 
@@ -1414,12 +1480,23 @@ namespace SERingAsteroids
 
                 if (jumpTarget != null)
                 {
-                    var dist = (jumpTarget.Value - voxelCreate.Position).Length();
+                    relpos = jumpTarget.Value - voxelCreate.Position;
+                    dist = relpos.Length();
+
+                    if (physics != null && dist > voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
+                    {
+                        var speed = Vector3D.Dot(relpos, physics.LinearVelocity) * 10 / dist;
+
+                        if (speed > 0)
+                        {
+                            dist -= speed;
+                        }
+                    }
 
                     // Don't inhibit spawn at jump target
-                    if (dist < voxelCreate.Size * 1.2)
+                    if (dist < voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1)
                     {
-                        dist = voxelCreate.Size * 1.2;
+                        dist = voxelCreate.Size * _exclusionZoneMult + _exclusionZone + 1;
                     }
 
                     if (dist < voxeldist)
