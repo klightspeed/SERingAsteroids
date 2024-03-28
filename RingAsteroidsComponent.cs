@@ -313,15 +313,17 @@ namespace SERingAsteroids
                 ReloadConfig();
             }
 
-            List<IMyEntity> entities;
+            var entities = new List<MyEntity>();
             var voxelmaps = new List<IMyVoxelBase>();
             var players = new List<IMyPlayer>();
             var gridBlocks = new Dictionary<long, List<IMySlimBlock>>();
+            var jumpDrives = new Dictionary<long, IMyJumpDrive>();
+            var jumpTargets = new Dictionary<long, Vector3D?>();
             var processingStart = DateTime.UtcNow;
 
             try
             {
-                entities = MyAPIGateway.Entities.GetTopMostEntitiesInBox(ref _ringBoundingBox);
+                MyGamePruningStructure.GetTopMostEntitiesInBox(ref _ringBoundingBox, entities);
                 MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
                 MyAPIGateway.Players.GetPlayers(players);
 
@@ -333,6 +335,12 @@ namespace SERingAsteroids
                         var blocks = new List<IMySlimBlock>();
                         grid.GetBlocks(blocks);
                         gridBlocks[grid.EntityId] = blocks;
+
+                        if (grid.JumpSystem?.IsJumping == true)
+                        {
+                            jumpDrives[grid.EntityId] = grid.GetFatBlocks<IMyJumpDrive>().FirstOrDefault();
+                            jumpTargets[grid.EntityId] = grid.JumpSystem.GetJumpDriveTarget();
+                        }
                     }
                 }
             }
@@ -355,7 +363,7 @@ namespace SERingAsteroids
                     var managedVoxelMapCount = _voxelsByDistance.Select(e => e.Item1).Count(e => e.VoxelMap?.Closed == false);
 
                     Dictionary<Vector2I, List<IMyEntity>> entitySectors;
-                    var sectorsToProcess = GetEntityMovements(entities, out entitySectors);
+                    var sectorsToProcess = GetEntityMovements(entities, jumpDrives, jumpTargets, out entitySectors);
                     sectorsToProcess = GetSectorsToProcess(sectorsToProcess);
 
                     foreach (var sector in sectorsToProcess)
@@ -906,7 +914,7 @@ namespace SERingAsteroids
             }
         }
 
-        private List<Vector2I> GetEntityMovements(List<IMyEntity> entities, out Dictionary<Vector2I, List<IMyEntity>> entitySectors)
+        private List<Vector2I> GetEntityMovements(IEnumerable<IMyEntity> entities, Dictionary<long, IMyJumpDrive> jumpDrives, Dictionary<long, Vector3D?> jumpTargets, out Dictionary<Vector2I, List<IMyEntity>> entitySectors)
         {
             var sectorsToProcess = new HashSet<Vector2I>();
             entitySectors = new Dictionary<Vector2I, List<IMyEntity>>();
@@ -953,8 +961,8 @@ namespace SERingAsteroids
 
                     if (jumpsystem?.IsJumping == true)
                     {
-                        var jumpTarget = jumpsystem.GetJumpDriveTarget();
-                        var jumpdrive = grid.GetFatBlocks<IMyJumpDrive>().FirstOrDefault();
+                        var jumpTarget = jumpTargets.GetValueOrDefault(grid.EntityId);
+                        var jumpdrive = jumpDrives.GetValueOrDefault(grid.EntityId);
 
                         if (jumpTarget != null && jumpdrive != null)
                         {
