@@ -1056,7 +1056,7 @@ namespace SERingAsteroids
                 }
                 else if (!_disableCleanup && voxelDetails.VoxelMap != null && !voxelDetails.VoxelMap.Closed && (!voxelDetails.IsModified || !voxelDetails.VoxelMap.Save) && !voxelDetails.DeletePending)
                 {
-                    if (voxelDetails.VoxelMap.Save && distFromEntity > _saveDistance * 1.25)
+                    if (voxelDetails.VoxelMap.Save && distFromPlayer > _saveDistance * 1.25 && distFromEntity > Math.Min(_saveDistance, _gridSpawnDistance) * 1.25)
                     {
                         if (IsVoxelMapModified(voxelDetails))
                         {
@@ -1077,7 +1077,7 @@ namespace SERingAsteroids
                     {
                         delVoxels.Push(tuple);
                     }
-                    else if (voxelDetails.VoxelMap.Save == false && distFromEntity < _saveDistance)
+                    else if (voxelDetails.VoxelMap.Save == false && (distFromPlayer < _saveDistance || distFromEntity < Math.Min(_gridSpawnDistance, _saveDistance)))
                     {
                         LogDebug($"Setting asteroid {voxelDetails.VoxelMap.EntityId} [{voxelDetails.VoxelMap.StorageName}] Save=true (Dist={distFromEntity} Sector={voxelDetails.Sector})");
                         voxelDetails.VoxelMap.Save = true;
