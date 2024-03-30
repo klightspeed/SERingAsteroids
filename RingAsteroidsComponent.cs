@@ -335,6 +335,8 @@ namespace SERingAsteroids
                 MyAPIGateway.Session.VoxelMaps.GetInstances(voxelmaps);
                 MyAPIGateway.Players.GetPlayers(players);
 
+                players = players.Where(e => e.IsBot == false).ToList();
+
                 foreach (var entity in entities)
                 {
                     if (entity is IMyCubeGrid)
