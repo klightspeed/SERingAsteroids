@@ -267,6 +267,11 @@ namespace SERingAsteroids
         public void RequestReload()
         {
             _reloadRequired = true;
+
+            if (!_processing)
+            {
+                ReloadConfig();
+            }
         }
 
         private Vector2I GetRingSectorForPosition(Vector3D position, string friendlyName)
