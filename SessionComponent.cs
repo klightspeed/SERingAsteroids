@@ -379,20 +379,27 @@ namespace SERingAsteroids
                 _IsInitialized = true;
             }
 
+            ProceduralVoxelDetails voxelDetails;
+            int voxelCountProcessed = 0;
+            var addedVoxels = new List<ProceduralVoxelDetails>();
+
+            while (voxelCountProcessed < 5 && _VoxelsToAdd.TryDequeueSync(out voxelDetails))
+            {
+                if (voxelDetails.AddPending && !voxelDetails.DeletePending)
+                {
+                    voxelDetails.ExecuteAdd();
+                    voxelDetails.AddPending = false;
+                    addedVoxels.Add(voxelDetails);
+                }
+
+                voxelCountProcessed++;
+            }
+
             if (MyAPIGateway.Multiplayer.IsServer)
             {
-                ProceduralVoxelDetails voxelDetails;
-                int voxelCountProcessed = 0;
-
-                while (voxelCountProcessed < 5 && _VoxelsToAdd.TryDequeueSync(out voxelDetails))
+                if (addedVoxels.Count != 0)
                 {
-                    if (voxelDetails.AddPending && !voxelDetails.DeletePending)
-                    {
-                        voxelDetails.ExecuteAdd();
-                        voxelDetails.AddPending = false;
-                    }
-
-                    voxelCountProcessed++;
+                    SendAsteroidsToClients(addedVoxels);
                 }
 
                 while (voxelCountProcessed < 5 && _VoxelsToDelete.TryDequeueSync(out voxelDetails))
@@ -413,6 +420,32 @@ namespace SERingAsteroids
             {
                 _ShowHelpRequested = false;
                 DisplayHelp();
+            }
+        }
+
+        private void SendAsteroidsToClients(List<ProceduralVoxelDetails> voxelDetails)
+        {
+            var players = new List<IMyPlayer>();
+            MyAPIGateway.Players.GetPlayers(players, p => !p.IsBot);
+            
+            foreach (var player in players)
+            {
+                var character = player.Character;
+                var entity = player.Controller?.ControlledEntity?.Entity?.GetTopMostParent();
+                Vector3D? characterPos = null;
+                Vector3D? entityPos = null;
+
+                if (character != null)
+                {
+                    characterPos = character.PositionComp.GetPosition();
+                }
+
+                if (entity != null)
+                {
+                    entityPos = character.PositionComp.GetPosition();
+                }
+
+
             }
         }
 
@@ -478,6 +511,10 @@ namespace SERingAsteroids
                         MyLog.Default.WriteLineAndConsole($"##MOD: RingAsteroids: Player with SteamID {steamId} not found");
                     }
                 }
+                else if (msgtype == "ASTEREQ\0")
+                {
+
+                }
             }
             else if (fromServer == true)
             {
@@ -498,6 +535,15 @@ namespace SERingAsteroids
                         {
                             MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Editing ring config for planet {_RequestedRing}");
                         }
+                    }
+                }
+                else if (msgtype == "ASTEROID")
+                {
+                    var voxels = MyAPIGateway.Utilities.SerializeFromBinary<ProceduralVoxelList>(reqdata);
+
+                    foreach (var voxel in voxels.Voxels)
+                    {
+                        _VoxelsToAdd.Enqueue(voxel);
                     }
                 }
             }

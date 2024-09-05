@@ -454,63 +454,6 @@ namespace SERingAsteroids
             });
         }
 
-        private class AsteroidCreationException : Exception
-        {
-            public AsteroidCreationException(string message, Exception innerException) : base(message, innerException) { }
-        }
-
-        private IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name, int generator)
-        {
-            IMyVoxelMap voxelmap;
-#if false
-            voxelmap = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(seed, size, MatrixD.CreateTranslation(pos));
-#else
-            var voxelMaterialDefinitions = MyDefinitionManager.Static.GetVoxelMaterialDefinitions();
-            var defaultMaterials = 
-                voxelMaterialDefinitions
-                    .Where(e => e.SpawnsInAsteroids && e.MinVersion <= _voxelGeneratorVersion && e.MaxVersion >= _voxelGeneratorVersion)
-                    .Select(e => new OctreeStorage.Chunks.MaterialIndexEntry { Index = e.Index, Name = e.Id.SubtypeName }).ToArray();
-            var asteroid = OctreeStorage.OctreeStorage.CreateAsteroid(seed, size, generatorSeed, materials: defaultMaterials);
-            var bytes = asteroid.GetBytes();
-
-            IMyStorage storage;
-
-            try
-            {
-                storage = MyAPIGateway.Session.VoxelMaps.CreateStorage(bytes);
-            }
-            catch (Exception ex)
-            {
-                Log($"Error creating asteroid: {ex}");
-                Log($"Writing bad asteroid data to {name}");
-
-                using (var writer = MyAPIGateway.Utilities.WriteBinaryFileInLocalStorage(name, typeof(RingAsteroidsComponent)))
-                {
-                    writer.Write(bytes);
-                }
-
-                throw new AsteroidCreationException("Error creating asteroid", ex);
-            }
-
-            pos -= new Vector3D(storage.Size.X + 1, storage.Size.Y + 1, storage.Size.Z + 1) / 2;
-
-            voxelmap = MyAPIGateway.Session.VoxelMaps.CreateVoxelMap(name, storage, pos, 0L);
-            MyEntities.RaiseEntityCreated(voxelmap as MyEntity);
-
-            if (!_disableCleanup && !_disableSaveLimit)
-                voxelmap.Save = false;
-#endif
-            LogDebug($"Spawned asteroid {voxelmap.EntityId} [{voxelmap.StorageName}]");
-
-            return voxelmap;
-        }
-
-        private void DeleteAsteroid(IMyVoxelMap voxelmap)
-        {
-            LogDebug($"Deleting asteroid {voxelmap.EntityId} [{voxelmap.StorageName}]");
-            voxelmap.Close();
-        }
-
         private void AddAsteroidsToSector(Vector2I sector)
         {
             LogDebug($"Processing sector {sector}");
@@ -677,8 +620,8 @@ namespace SERingAsteroids
                     Size = size,
                     GeneratorSeed = gseed,
                     VoxelGeneratorVersion = _voxelGeneratorVersion,
-                    AddAction = CreateProceduralAsteroid,
-                    DeleteAction = DeleteAsteroid
+                    LogAction = Log,
+                    LogDebugAction = LogDebug
                 };
 
                 if (!sectorVoxels.ContainsKey(name))
@@ -1338,7 +1281,8 @@ namespace SERingAsteroids
                                 VoxelMap = (IMyVoxelMap)voxelmap,
                                 Position = position.Value,
                                 Size = size.Value,
-                                DeleteAction = DeleteAsteroid
+                                LogAction = Log,
+                                LogDebugAction = LogDebug
                             });
                         }
                     }
