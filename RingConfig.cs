@@ -576,13 +576,52 @@ namespace SERingAsteroids
                 }
             }
 
-            ringConfig.RingHeight = ringConfig.RingHeight ?? (planet.MaximumRadius < 20000 ? 1000 : 2000);
+            var defaultRingHeight = 2000;
+
+            if (planet.MaximumRadius < 10000)
+                defaultRingHeight = 500;
+            else if (planet.MaximumRadius < 20000)
+                defaultRingHeight = 1000;
+
+            ringConfig.RingHeight = ringConfig.RingHeight ?? defaultRingHeight;
             ringConfig.RingInclination = ringConfig.RingInclination ?? 0;
             ringConfig.RingLongitudeAscendingNode = ringConfig.RingLongitudeAscendingNode ?? 0;
-            ringConfig.SectorSize = ringConfig.SectorSize ?? (planet.MaximumRadius < 20000 ? 5000 : 10000);
-            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? Math.Ceiling(planet.MaximumRadius * 1.25 / ringConfig.SectorSize.Value) * ringConfig.SectorSize;
-            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? Math.Ceiling(planet.MaximumRadius * 2 / ringConfig.SectorSize.Value) * ringConfig.SectorSize;
-            ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector ?? 50;
+
+            var defaultSectorSize = 10000;
+
+            if (planet.MaximumRadius < 5000)
+                defaultSectorSize = 1000;
+            else if (planet.MaximumRadius < 10000)
+                defaultSectorSize = 2000;
+            else if (planet.MaximumRadius < 20000)
+                defaultSectorSize = 5000;
+
+            ringConfig.SectorSize = ringConfig.SectorSize ?? defaultSectorSize;
+
+            var defaultInnerRad = Math.Ceiling(planet.MaximumRadius * 1.25 / ringConfig.SectorSize.Value) * ringConfig.SectorSize;
+
+            if (defaultInnerRad < ringConfig.SectorSize * 4)
+                defaultInnerRad = ringConfig.SectorSize * 4;
+
+            ringConfig.RingInnerRadius = ringConfig.RingInnerRadius ?? defaultInnerRad;
+
+            var defaultOuterRad = Math.Ceiling(planet.MaximumRadius * 2 / ringConfig.SectorSize.Value) * ringConfig.SectorSize;
+
+            if (defaultOuterRad < ringConfig.RingInnerRadius + ringConfig.SectorSize * 4)
+                defaultOuterRad = ringConfig.RingInnerRadius + ringConfig.SectorSize * 4;
+
+            ringConfig.RingOuterRadius = ringConfig.RingOuterRadius ?? defaultOuterRad;
+
+            var defaultAsteroidsPerSector = 50;
+
+            if (ringConfig.SectorSize <= 1000)
+                defaultAsteroidsPerSector = 5;
+            else if (ringConfig.SectorSize <= 2000)
+                defaultAsteroidsPerSector = 10;
+            else if (ringConfig.SectorSize <= 5000)
+                defaultAsteroidsPerSector = 20;
+
+            ringConfig.MaxAsteroidsPerSector = ringConfig.MaxAsteroidsPerSector ?? defaultAsteroidsPerSector;
             ringConfig.TaperRingEdge = ringConfig.TaperRingEdge ?? false;
             ringConfig.RingZones = ringConfig.RingZones ?? new List<RingZone>();
 
