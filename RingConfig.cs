@@ -415,7 +415,7 @@ namespace SERingAsteroids
             }
             catch (Exception ex)
             {
-                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading planet config: {ex}");
+                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading planet config from {configFileName}: {ex}");
             }
 
             if (modid != null)
@@ -456,7 +456,7 @@ namespace SERingAsteroids
             }
             catch (Exception ex)
             {
-                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading default config: {ex}");
+                MyLog.Default.WriteLineAndConsole($"##MOD: Ring asteroid error reading default config from {defConfigFileName}: {ex}");
             }
 
             if (SBCStoredDefaultConfig != null)
