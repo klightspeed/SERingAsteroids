@@ -511,6 +511,7 @@ namespace SERingAsteroids
             {
                 config = RingConfig.SBCStoredDefaultConfig;
                 config.PlanetName = "@defaults";
+                config.DebugDrawRingBounds = false;
             }
             else
             {
@@ -524,6 +525,7 @@ namespace SERingAsteroids
                 {
                     config = RingConfig.GetRingConfig(planet, null);
                     config.PlanetName = req.PlanetName;
+                    config.DebugDrawRingBounds = false;
                 }
             }
 
@@ -643,12 +645,14 @@ namespace SERingAsteroids
                     MyAPIGateway.Utilities.ShowMessage(MessageSenderName, "Editing ring defaults");
                     config = RingConfig.SBCStoredDefaultConfig.Clone();
                     config.PlanetName = "@defaults";
+                    config.DebugDrawRingBounds = false;
                 }
                 else
                 {
                     MyAPIGateway.Utilities.ShowMessage(MessageSenderName, $"Editing ring data for planet {planetName}");
                     config = RingConfig.GetRingConfig(planet, null);
                     config.PlanetName = planetName;
+                    config.DebugDrawRingBounds = false;
                 }
 
                 UpdateEditingRing(config);
@@ -933,10 +937,9 @@ namespace SERingAsteroids
 
             if (config != null && config.PlanetName != null)
             {
-                if (config.DebugDrawRingBounds != true || !MyAPIGateway.Multiplayer.IsServer)
-                {
-                    RemoveShownRing(config.PlanetName);
-                }
+                config.DebugDrawRingBounds = false;
+
+                RemoveShownRing(config.PlanetName);
 
                 if (!DisallowedPlanetNameCharacters.Any(c => config.PlanetName.Contains(c)))
                 {
