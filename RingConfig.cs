@@ -322,6 +322,11 @@ namespace SERingAsteroids
             if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_RingConfigs", out configxml))
             {
                 SBCStoredConfigs = MyAPIGateway.Utilities.SerializeFromXML<List<RingConfig>>(configxml);
+
+                foreach (var config in SBCStoredConfigs)
+                {
+                    config.DebugDrawRingBounds = null;
+                }
             }
             else
             {
@@ -331,6 +336,7 @@ namespace SERingAsteroids
             if (MyAPIGateway.Utilities.GetVariable("SERingAsteroids_DefaultRingConfig", out configxml))
             {
                 SBCStoredDefaultConfig = MyAPIGateway.Utilities.SerializeFromXML<RingConfig>(configxml);
+                SBCStoredDefaultConfig.DebugDrawRingBounds = null;
             }
         }
 
@@ -353,6 +359,8 @@ namespace SERingAsteroids
 
         private static void AddOrUpdateSBCStoredConfig(RingConfig config)
         {
+            config.DebugDrawRingBounds = null;
+
             var sbcConfigIndex = SBCStoredConfigs.FindIndex(e => e.PlanetName == config.PlanetName && e.ModId == config.ModId && e.Vanilla == config.Vanilla);
             var sbcConfig = sbcConfigIndex >= 0 ? SBCStoredConfigs[sbcConfigIndex] : null;
 
@@ -410,7 +418,7 @@ namespace SERingAsteroids
                         config.Vanilla = modid == null;
                     }
 
-                    AddOrUpdateSBCStoredConfig(config);
+                    AddOrUpdateSBCStoredConfig(config.Clone());
                 }
             }
             catch (Exception ex)
@@ -695,6 +703,7 @@ namespace SERingAsteroids
                 config.Enabled = null;
 
                 SBCStoredDefaultConfig = config.Clone();
+                SBCStoredDefaultConfig.DebugDrawRingBounds = null;
                 filename = "ringDefaults.xml";
             }
             else if (SessionComponent.DisallowedPlanetNameCharacters.Any(c => config.PlanetName.Contains(c)))
