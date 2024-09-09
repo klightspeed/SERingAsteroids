@@ -637,7 +637,7 @@ namespace SERingAsteroids
                 exampleConfig.DisableAsteroidCleanup = exampleConfig.DisableAsteroidCleanup ?? false;
                 exampleConfig.DisableReducedSaveDistance = exampleConfig.DisableReducedSaveDistance ?? false;
                 exampleConfig.DisablePhysicsIfOutOfRange = exampleConfig.DisablePhysicsIfOutOfRange ?? false;
-                exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? true;
+                exampleConfig.DebugDrawRingBounds = exampleConfig.DebugDrawRingBounds ?? false;
 
                 if (exampleConfig.RingInnerRadius < exampleConfig.SectorSize * 4)
                     exampleConfig.RingInnerRadius = exampleConfig.SectorSize * 4;
