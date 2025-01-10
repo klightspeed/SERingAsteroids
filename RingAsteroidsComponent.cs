@@ -42,6 +42,7 @@ namespace SERingAsteroids
         private bool _disableCleanup;
         private bool _disableSaveLimit;
         private bool _limitPhysics;
+        private bool _allowAsteroidsInAtmosphere;
         private readonly List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
@@ -230,6 +231,7 @@ namespace SERingAsteroids
             _playerSpawnDistance = config.AsteroidPlayerSpawnDistance ?? MyAPIGateway.Session.SessionSettings.ViewDistance * 1.2;
             _gridSpawnDistance = config.AsteroidGridSpawnDistance ?? 1200;
             _physicsDistance = config.AsteroidPhysicsDistance ?? 1200;
+            _allowAsteroidsInAtmosphere = config.AllowAsteroidsInPlanetAtmosphere ?? false;
 
             if (config.RingZones != null)
             {
@@ -715,20 +717,36 @@ namespace SERingAsteroids
             var sphere = new BoundingSphereD(voxelDetails.Position, overlapRadius);
             var overlap = MyAPIGateway.Session.VoxelMaps.GetOverlappingWithSphere(ref sphere);
 
-            if (overlap != null && overlap.EntityId == _planet.EntityId)
+            if (overlap is MyVoxelBase)
+            {
+                overlap = ((MyVoxelBase)overlap).RootVoxel;
+            }
+
+            if (overlap != null && overlap is MyPlanet)
             {
                 overlap = null;
 
                 foreach (var voxel in _voxelMaps.Values)
                 {
                     var radius = voxel.WorldVolume.Radius;
+                    var position = voxel.PositionComp.GetPosition();
 
                     if (voxel is MyPlanet)
                     {
-                        radius = ((MyPlanet)voxel).AtmosphereRadius;
+                        var planet = (MyPlanet)voxel;
+
+                        if (_allowAsteroidsInAtmosphere)
+                        {
+                            radius = 0;
+                            position = planet.GetClosestSurfacePointGlobal(voxelDetails.Position);
+                        }
+                        else
+                        {
+                            radius = planet.AtmosphereRadius;
+                        }
                     }
 
-                    var distsq = (voxel.PositionComp.GetPosition() - voxelDetails.Position).LengthSquared();
+                    var distsq = (position - voxelDetails.Position).LengthSquared();
 
                     if (distsq < Math.Pow(overlapRadius + radius, 2))
                     {

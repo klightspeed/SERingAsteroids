@@ -108,6 +108,9 @@ namespace SERingAsteroids
         [ProtoMember(31)]
         public double? AsteroidPhysicsDistance { get; set; }
 
+        [ProtoMember(32)]
+        public bool? AllowAsteroidsInPlanetAtmosphere { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 
@@ -312,6 +315,7 @@ namespace SERingAsteroids
                 AsteroidPlayerSpawnDistance = AsteroidPlayerSpawnDistance,
                 AsteroidGridSpawnDistance = AsteroidGridSpawnDistance,
                 AsteroidPhysicsDistance = AsteroidPhysicsDistance,
+                AllowAsteroidsInPlanetAtmosphere = AllowAsteroidsInPlanetAtmosphere,
             };
         }
 
@@ -535,6 +539,7 @@ namespace SERingAsteroids
                     ringConfig.AsteroidPlayerSpawnDistance= ringConfig.AsteroidPlayerSpawnDistance ?? config.AsteroidPlayerSpawnDistance;
                     ringConfig.AsteroidGridSpawnDistance  = ringConfig.AsteroidGridSpawnDistance  ?? config.AsteroidGridSpawnDistance;
                     ringConfig.AsteroidPhysicsDistance    = ringConfig.AsteroidPhysicsDistance    ?? config.AsteroidPhysicsDistance;
+                    ringConfig.AllowAsteroidsInPlanetAtmosphere = ringConfig.AllowAsteroidsInPlanetAtmosphere ?? config.AllowAsteroidsInPlanetAtmosphere;
 
                     if (config.PlanetName != null)
                         ringConfig.Enabled                = ringConfig.Enabled                    ?? config.Enabled;
@@ -938,6 +943,7 @@ namespace SERingAsteroids
                     case "disableasteroidcleanup": config.DisableAsteroidCleanup = boolval; break;
                     case "disablereducedsavedistance": config.DisableReducedSaveDistance = boolval; break;
                     case "disablephysicsifoutofrange": config.DisablePhysicsIfOutOfRange = boolval; break;
+                    case "allowasteroidsinatmosphere": config.AllowAsteroidsInPlanetAtmosphere = boolval; break;
                 }
 
                 if (zone != null)
