@@ -799,6 +799,10 @@ namespace SERingAsteroids
                 "/ringast xzmul [mult]\n" +
                 "    Minimum space around asteroid as a multiple of its size to exclude other asteroids\n" +
                 "\n" +
+                "/ringast allowasteroidsinatmosphere {true|false|yes|no}\n" +
+                "/ringast noallowasteroidsinatmosphere\n" +
+                "    Allow or disallow asteroids inside planet atmosphere for this ring\n" +
+                "\n" +
                 "All of the above commands are case insensitive, and most also accept the shortest unique prefix."
             );
         }
