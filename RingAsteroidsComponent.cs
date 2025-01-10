@@ -729,24 +729,30 @@ namespace SERingAsteroids
                 foreach (var voxel in _voxelMaps.Values)
                 {
                     var radius = voxel.WorldVolume.Radius;
-                    var position = voxel.PositionComp.GetPosition();
 
                     if (voxel is MyPlanet)
                     {
                         var planet = (MyPlanet)voxel;
 
-                        if (_allowAsteroidsInAtmosphere)
-                        {
-                            radius = 0;
-                            position = planet.GetClosestSurfacePointGlobal(voxelDetails.Position);
-                        }
-                        else
+                        if (!_allowAsteroidsInAtmosphere)
                         {
                             radius = planet.AtmosphereRadius;
                         }
+                        else
+                        {
+                            radius = 0;
+
+                            var height = planet.GetHeightFromSurface(voxelDetails.Position);
+
+                            if (height < overlapRadius)
+                            {
+                                overlap = voxel;
+                                break;
+                            }
+                        }
                     }
 
-                    var distsq = (position - voxelDetails.Position).LengthSquared();
+                    var distsq = (voxel.PositionComp.GetPosition() - voxelDetails.Position).LengthSquared();
 
                     if (distsq < Math.Pow(overlapRadius + radius, 2))
                     {
