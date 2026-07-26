@@ -111,6 +111,12 @@ namespace SERingAsteroids
         [ProtoMember(32)]
         public bool? AllowAsteroidsInPlanetAtmosphere { get; set; }
 
+        [ProtoMember(40)]
+        public string AsteroidNamePrefix { get; set; }
+
+        [ProtoMember(41)]
+        public string AsteroidNamePlanetPrefix { get; set; }
+
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 

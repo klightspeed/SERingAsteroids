@@ -43,6 +43,9 @@ namespace SERingAsteroids
         private bool _disableSaveLimit;
         private bool _limitPhysics;
         private bool _allowAsteroidsInAtmosphere;
+        private string _asteroidNamePrefix;
+        private string _asteroidNamePlanetPrefix;
+        private string _asteroidNameDefaultPlanetPrefix;
         private readonly List<RingZone> _ringZones = new List<RingZone>();
 
         private MatrixD _ringMatrix;
@@ -232,6 +235,19 @@ namespace SERingAsteroids
             _gridSpawnDistance = config.AsteroidGridSpawnDistance ?? 1200;
             _physicsDistance = config.AsteroidPhysicsDistance ?? 1200;
             _allowAsteroidsInAtmosphere = config.AllowAsteroidsInPlanetAtmosphere ?? false;
+            _asteroidNamePrefix = config.AsteroidNamePrefix;
+            _asteroidNamePlanetPrefix = config.AsteroidNamePlanetPrefix;
+            _asteroidNameDefaultPlanetPrefix = $"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})";
+
+            if (string.IsNullOrWhiteSpace(_asteroidNamePrefix))
+            {
+                _asteroidNamePrefix = "RingAsteroid";
+            }
+
+            if (string.IsNullOrWhiteSpace(_asteroidNamePlanetPrefix))
+            {
+                _asteroidNamePlanetPrefix = _asteroidNameDefaultPlanetPrefix;
+            }
 
             if (config.RingZones != null)
             {
@@ -666,7 +682,7 @@ namespace SERingAsteroids
 
                 var pos = Vector3D.Transform(new Vector3D(x, y, z), _ringMatrix);
 
-                var name = $"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_{sector.X}_{sector.Y}_{tries}_{aseed}";
+                var name = $"{_asteroidNamePlanetPrefix}_{sector.X}_{sector.Y}_{tries}_{aseed}";
 
                 IMyVoxelBase existing;
 
@@ -905,7 +921,7 @@ namespace SERingAsteroids
 
                     _voxelMapSectors[entity.EntityId] = sector;
 
-                    if (sector != default(Vector2I) && storageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
+                    if (sector != default(Vector2I) && (storageName.StartsWith(_asteroidNamePlanetPrefix) || storageName.StartsWith(_asteroidNameDefaultPlanetPrefix)))
                     {
                         HashSet<long> ids;
 
@@ -1353,7 +1369,7 @@ namespace SERingAsteroids
                             !voxelCreates.ContainsKey(name) &&
                             position != null &&
                             size != null &&
-                            name.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
+                            (name.StartsWith(_asteroidNamePlanetPrefix) || name.StartsWith(_asteroidNameDefaultPlanetPrefix)))
                         {
                             sectorVoxelCreates.Add(new ProceduralVoxelDetails
                             {
@@ -1365,14 +1381,6 @@ namespace SERingAsteroids
                                 DeleteAction = DeleteAsteroid
                             });
                         }
-                    }
-
-                    if (_voxelMaps.TryGetValue(id, out voxelmap) &&
-                        voxelmap is IMyVoxelMap &&
-                        !voxelmap.Closed &&
-                        !voxelCreates.ContainsKey(voxelmap.StorageName) &&
-                        voxelmap.StorageName.StartsWith($"RingAsteroid_P({_planet.StorageName}-{_planet.EntityId})_"))
-                    {
                     }
                 }
             }
