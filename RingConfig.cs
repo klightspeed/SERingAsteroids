@@ -13,111 +13,391 @@ namespace SERingAsteroids
     [ProtoContract]
     public class RingConfig
     {
+        /// <summary>
+        /// Planet storage name
+        /// </summary>
+        /// <remarks>
+        /// Always set to the planet's <see cref="MyVoxelBase.StorageName">storage name</see>
+        /// </remarks>
         [ProtoMember(1)]
         public string PlanetName { get; set; }
 
+        /// <summary>
+        /// Used to anchor the config to a specific mod (i.e. not apply if the planet comes from a different mod)
+        /// </summary>
         [ProtoMember(2)]
         public string ModId { get; set; }
 
+        /// <summary>
+        /// Set to true if putting rings around a base-game planet
+        /// </summary>
         [ProtoMember(3)]
         public bool? Vanilla { get; set; }
 
+        /// <summary>
+        /// Ring outer radius
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: greater of:
+        /// <list type="bullet">
+        ///   <item>2 × <see cref="MyPlanet.MinimumRadius">planet minimum radius</see></item>
+        ///   <item><see cref="RingInnerRadius">RingInnerRadius</see> + 4 × <see cref="SectorSize">SectorSize</see></item>
+        /// </list>
+        /// Rounded to nearest multiple of <see cref="SectorSize">SectorSize</see>
+        /// </remarks>
         [ProtoMember(4)]
         public double? RingOuterRadius { get; set; }
 
+        /// <summary>
+        /// Ring inner radius
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: greater of
+        /// <list type="bullet">
+        ///   <item>1.25 × <see cref="MyPlanet.MinimumRadius">planet minimum radius</see></item>
+        ///   <item>4 × <see cref="SectorSize">SectorSize</see></item>
+        /// </list>
+        /// Rounded to nearest multiple of <see cref="SectorSize">SectorSize</see>
+        /// </remarks>
         [ProtoMember(5)]
         public double? RingInnerRadius { get; set; }
 
+        /// <summary>
+        /// Distance between ring plane and upper / lower limit of ring
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default:
+        /// <list type="table">
+        ///   <item>
+        ///     <term><see cref="MyPlanet.MinimumRadius">planet minimum radius</see> &lt; 10000</term>
+        ///     <description>500</description>
+        ///   </item>
+        ///   <item>
+        ///     <term><see cref="MyPlanet.MinimumRadius">planet minimum radius</see> &lt; 20000</term>
+        ///     <description>1000</description>
+        ///   </item>
+        ///   <item>
+        ///     <term><see cref="MyPlanet.MinimumRadius">planet minimum radius</see> &gt;= 20000</term>
+        ///     <description>2000</description>
+        ///   </item>
+        /// </list>
+        /// </remarks>
         [ProtoMember(6)]
         public double? RingHeight { get; set; }
 
+        /// <summary>
+        /// Ring sector size
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>10000</c>
+        /// </remarks>
         [ProtoMember(7)]
         public double? SectorSize { get; set; }
 
+        /// <summary>
+        /// Maximum asteroids per sector
+        /// </summary>
+        /// <remarks>
+        /// Default: <c>50</c>
+        /// </remarks>
         [ProtoMember(8)]
         public int? MaxAsteroidsPerSector { get; set; }
 
+        /// <summary>
+        /// Longitude of ascending node
+        /// </summary>
+        /// <remarks>
+        /// Unit: degrees<br/>
+        /// The Longitude of ascending node is the longitude at which the ring crosses
+        /// the planet's equator (X/Z plane) going northwards (Y+) assuming a positive
+        /// <see cref="RingInclination">inclination</see>, where the meridian is
+        /// taken as the X+ side of the X/Y plane going through the planet.
+        /// </remarks>
         [ProtoMember(9)]
         public double? RingLongitudeAscendingNode { get; set; }
 
+        /// <summary>
+        /// Inclination of ring to planet's equator
+        /// </summary>
+        /// <remarks>
+        /// Unit: degrees<br/>
+        /// The inclination of the ring is the maximum latitude (or minimum latitude if negative)
+        /// of the path the plane of the ring draws on the surface of the planet.
+        /// </remarks>
         [ProtoMember(10)]
         public double? RingInclination { get; set; }
 
+        /// <summary>
+        /// Minimum asteroid size
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>128</c>
+        /// </remarks>
         [ProtoMember(11)]
         public double? MinAsteroidSize { get; set; }
 
+        /// <summary>
+        /// Maximum asteroid size
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>2048</c>
+        /// </remarks>
         [ProtoMember(12)]
         public double? MaxAsteroidSize { get; set; }
 
+        /// <summary>
+        /// Distance any grid or player needs to move before new sectors are considered for population with asteroids
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>512</c>
+        /// </remarks>
         [ProtoMember(13)]
         public double? EntityMovementThreshold { get; set; }
 
+        /// <summary>
+        /// Size weighting exponent. Values larger than 1 prefer smaller sizes, while values smaller than 1 prefer larger sizes
+        /// </summary>
+        /// <remarks>
+        /// Default: <c>2.0</c>
+        /// </remarks>
         [ProtoMember(14)]
         public double? SizeExponent { get; set; }
 
+        /// <summary>
+        /// Minimum space around asteroid in metres to exclude other asteroids
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>64</c>
+        /// </remarks>
         [ProtoMember(15)]
         public double? ExclusionZoneSize { get; set; }
 
+        /// <summary>
+        /// Minimum space around asteroid as a multiple of its size to exclude other asteroids
+        /// </summary>
+        /// <remarks>
+        /// Default: <c>1.5</c>
+        /// </remarks>
         [ProtoMember(16)]
         public double? ExclusionZoneSizeMult { get; set; }
 
+        /// <summary>
+        /// Space Engineers voxel generator version
+        /// </summary>
+        /// <remarks>
+        /// Defaults to value in <see cref="VRage.Game.MyObjectBuilder_SessionSettings.VoxelGeneratorVersion">VoxelGeneratorVersion</see>
+        /// in <u>Sandbox.sbc</u><br/>
+        /// Versions:
+        /// <list type="table">
+        ///   <item>
+        ///     <term>0</term>
+        ///     <description>Original procedural generator without ice (before 01.074)</description>
+        ///   </item>
+        ///   <item>
+        ///     <term>1</term>
+        ///     <description>Default version before about September 2015 (introduced 01.074)</description>
+        ///   </item>
+        ///   <item>
+        ///     <term>2</term>
+        ///     <description>Generation identical to version 1 (introduced somewhere between 01.079 and 01.083)</description>
+        ///   </item>
+        ///   <item>
+        ///     <term>3</term>
+        ///     <description>New-style procedural generation (introduced 1.188)</description>
+        ///   </item>
+        ///   <item>
+        ///     <term>4</term>
+        ///     <description>"No Uranium on planets and tweaks in distribution of ore on asteroids" (introduced 1.189)</description>
+        ///   </item>
+        /// </list>
+        /// </remarks>
         [ProtoMember(17)]
         public int? VoxelGeneratorVersion { get; set; }
 
+        /// <summary>
+        /// Taper inner and outer edges of ring
+        /// </summary>
+        /// <remarks>
+        /// Default: <c>true</c>
+        /// </remarks>
         [ProtoMember(18)]
         public bool? TaperRingEdge { get; set; }
 
+        /// <summary>
+        /// Set to true to enable ring asteroid generation for this planet
+        /// </summary>
         [ProtoMember(19)]
         public bool? Enabled { get; set; }
 
+        /// <summary>
+        /// Enable early debug logging
+        /// </summary>
+        /// <remarks>
+        /// Starts logging before the check for if rings are enabled around a planet
+        /// </remarks>
         [ProtoMember(20)]
         public bool? EarlyLog { get; set; }
 
+        /// <summary>
+        /// Enable debug logging
+        /// </summary>
+        /// <remarks>
+        /// Log debugging information into a file per planet in local storage directory.<br/>
+        /// Default location is <c>%APPDATA%\Roaming\SpaceEngineers\Storage\{ModId}_{ClassName})</c>
+        /// </remarks>
         [ProtoMember(21)]
         public bool? LogDebug { get; set; }
 
+        /// <summary>
+        /// Draw ring bounds with equatorial, ascending node, and maximum latitude planes
+        /// </summary>
+        /// <remarks>
+        /// This is a single-player / host-only setting, and is not used by clients.
+        /// </remarks>
         [ProtoMember(22)]
         public bool? DebugDrawRingBounds { get; set; }
 
+        /// <summary>
+        /// Planet average radius
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Note: Settings will be scaled if this does not match the
+        /// <see cref="MyPlanet.AverageRadius">radius</see> of the planet
+        /// </remarks>
         [ProtoMember(23)]
         public double? PlanetRadius { get; set; }
 
+        /// <summary>
+        /// Include the planet name in the sector seed used to generate asteroids
+        /// </summary>
+        /// <remarks>
+        /// If this is false or not set, then the asteroid patterns of two planets with the same
+        /// parameters will be the same.
+        /// </remarks>
         [ProtoMember(24)]
         public bool? IncludePlanetNameInRandomSeed { get; set; }
 
+        /// <summary>
+        /// Disable the cleanup of asteroids out of range of grids and players
+        /// </summary>
+        /// <remarks>
+        /// Beware that this could eventually cause the physics engine to run out of memory at high densities and player movements
+        /// </remarks>
         [ProtoMember(25)]
         public bool? DisableAsteroidCleanup { get; set; }
 
+        /// <summary>
+        /// Don't clear the Save flag on asteroids
+        /// </summary>
+        /// <remarks>
+        /// This should reduce pop-in on dedicated server at the expense of a larger save size.<br/>
+        /// Note that the Space Engineers multiplayer server will not currently send asteroids that do not
+        /// have the <see cref="VRage.ModAPI.IMyEntity.Save">Save</see> flag set to clients.
+        /// </remarks>
         [ProtoMember(26)]
         public bool? DisableReducedSaveDistance { get; set; }
 
+        /// <summary>
+        /// Disable physics on asteroid when out of range
+        /// </summary>
+        /// <remarks>
+        /// Disables physics on the asteroid when outside the configured <c>AsteroidPhysicsDistance</c> from any
+        /// players or grids
+        /// </remarks>
         [ProtoMember(27)]
         public bool? DisablePhysicsIfOutOfRange { get; set; }
 
+        /// <summary>
+        /// Distance from players or grids at which asteroids are saved
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: 1.2 × <see cref="VRage.Game.MyObjectBuilder_SessionSettings.SyncDistance">sync distance</see><br/>
+        /// Hysteresis: 1.25×
+        /// </remarks>
         [ProtoMember(28)]
         public double? AsteroidSaveDistance { get; set; }
 
+        /// <summary>
+        /// Distance from players at which asteroids will spawn on the server
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: 1.2 × <see cref="VRage.Game.MyObjectBuilder_SessionSettings.ViewDistance">view distance</see><br/>
+        /// Hysteresis: 1.25×
+        /// </remarks>
         [ProtoMember(29)]
         public double? AsteroidPlayerSpawnDistance { get; set; }
 
+        /// <summary>
+        /// Distance from grids at which asteroids will spawn on the server
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>1200</c><br/>
+        /// Hysteresis: 1.25×
+        /// </remarks>
         [ProtoMember(30)]
         public double? AsteroidGridSpawnDistance { get; set; }
 
+        /// <summary>
+        /// Distance from grids at which physics on asteroids will be enabled or disabled
+        /// </summary>
+        /// <remarks>
+        /// Unit: metres<br/>
+        /// Default: <c>1200</c><br/>
+        /// Hysteresis: 1.25×
+        /// </remarks>
         [ProtoMember(31)]
         public double? AsteroidPhysicsDistance { get; set; }
 
+        /// <summary>
+        /// Remove the restriction on asteroids spawning inside the planet's <see cref="MyPlanet.AtmosphereRadius">atmosphere radius</see>
+        /// </summary>
         [ProtoMember(32)]
         public bool? AllowAsteroidsInPlanetAtmosphere { get; set; }
 
+        /// <summary>
+        /// Global ring asteroid name prefix
+        /// </summary>
+        /// <remarks>
+        /// Default: <c>RingAsteroid</c><br/>
+        /// Change this to something like <c>Asteroid_Ring</c> to be filtered by mods such as
+        /// <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3218645300">Asteroid Filter API</a>
+        /// </remarks>
         [ProtoMember(40)]
         public string AsteroidNamePrefix { get; set; }
 
+        /// <summary>
+        /// Planet-specific ring asteroid name prefix
+        /// </summary>
+        /// <remarks>
+        /// Default: <c><see cref="AsteroidNamePrefix">RingAsteroid</see>_P(<see cref="MyVoxelBase.StorageName">PlanetName</see>-<see cref="VRage.Game.Entity.MyEntity.EntityId">EntityId</see>)</c>
+        /// </remarks>
         [ProtoMember(41)]
         public string AsteroidNamePlanetPrefix { get; set; }
 
+        /// <summary>
+        /// Ring Centre Position
+        /// </summary>
+        /// <remarks>
+        /// This will always be set to the centre of the planet
+        /// </remarks>
         [ProtoMember(99)]
         public Vector3D? RingCentre { get; set; }
 
+        /// <summary>
+        /// Zero or more RingZone elements
+        /// </summary>
         [ProtoMember(100)]
         public List<RingZone> RingZones { get; set; }
 
