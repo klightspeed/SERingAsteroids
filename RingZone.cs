@@ -31,7 +31,7 @@ namespace SERingAsteroids
         /// <remarks>
         /// Unit: metres<br/>
         /// Default: <see cref="RingConfig.RingHeight"/><br/>
-        /// Set to 0 for a ring gap
+        /// Set this or <see cref="MaxAsteroidsPerSector"/> to 0 for a ring gap
         /// </remarks>
         [ProtoMember(3)]
         public double? RingHeight { get; set; }
@@ -60,7 +60,8 @@ namespace SERingAsteroids
         /// Override max asteroids per sector
         /// </summary>
         /// <remarks>
-        /// Default: <see cref="RingConfig.MaxAsteroidsPerSector"/>
+        /// Default: <see cref="RingConfig.MaxAsteroidsPerSector"/><br/>
+        /// Set this or <see cref="RingHeight"/> to 0 for a ring gap
         /// </remarks>
         [ProtoMember(6)]
         public int? MaxAsteroidsPerSector { get; set; }
