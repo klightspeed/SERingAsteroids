@@ -3,10 +3,8 @@ using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using VRage.Game.ModAPI;
-using VRage.Serialization;
 using VRage.Utils;
 using VRageMath;
 

@@ -12,7 +12,6 @@ using VRage.Utils;
 using Sandbox.Game.Entities;
 using VRage.ModAPI;
 using System.Text;
-using Sandbox.Engine.Utils;
 using System.IO;
 
 namespace SERingAsteroids
