@@ -24,7 +24,7 @@
 		<SpaceEngineersModsPath Condition="'$(SpaceEngineersModsPath)' == ''">$(HOME)/SpaceEngineersMods</SpaceEngineersModsPath>
 		<SERingAsteroidsModPath Condition="'$(SERingAsteroidsModPath)' == ''">$(SpaceEngineersModsPath)/SERingAsteroids</SERingAsteroidsModPath>
 		<SERingAsteroidsScriptsComponentName Condition="'$(SERingAsteroidsScriptsComponentName)' == ''">BylenRingAsteroids</SERingAsteroidsScriptsComponentName>
-		<ScriptOutputDir>$(SpaceEngineersModsPath)/Data/Scripts/$(SERingAsteroidsScriptsComponentName)</ScriptOutputDir>
+		<ScriptOutputDir>$(SERingAsteroidsModPath)//Data/Scripts/$(SERingAsteroidsScriptsComponentName)</ScriptOutputDir>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -102,7 +102,6 @@
 		<ItemGroup>
 			<_SourceFiles Include="@(Compile)" />
 			<_SourceFiles Include="@(Content)" />
-			<_SourceFiles Remove="@(_SourceFiles)" Condition="'%(AutoGen) == true" />
 			<_SourceFiles Remove="**/*.Designer.cs" />
 			<_SourceFiles Remove="**/*.g.cs" />
 			<_SourceFiles Remove="**/*.g.i.cs" />
