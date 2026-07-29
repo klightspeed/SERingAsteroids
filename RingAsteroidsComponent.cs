@@ -472,11 +472,6 @@ namespace SERingAsteroids
             });
         }
 
-        private class AsteroidCreationException : Exception
-        {
-            public AsteroidCreationException(string message, Exception innerException) : base(message, innerException) { }
-        }
-
         private IMyVoxelMap CreateProceduralAsteroid(int seed, float size, int generatorSeed, Vector3D pos, string name, int generator)
         {
             IMyVoxelMap voxelmap;
