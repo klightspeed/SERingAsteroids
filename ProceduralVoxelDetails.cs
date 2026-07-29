@@ -1,5 +1,6 @@
 ﻿using System;
 using VRage.Game.ModAPI;
+using VRage.ModAPI;
 using VRageMath;
 
 namespace SERingAsteroids
@@ -38,11 +39,25 @@ namespace SERingAsteroids
 
         public Action<IMyVoxelMap> DeleteAction { get; set; }
 
+        public void OnClose(IMyEntity entity)
+        {
+            if (ReferenceEquals(entity, VoxelMap))
+            {
+                IsInhibited = true;
+            }
+        }
+
         public void ExecuteAdd()
         {
             try
             {
                 VoxelMap = AddAction(Seed, Size, GeneratorSeed, Position, Name, VoxelGeneratorVersion);
+                VoxelMap.OnMarkForClose += OnClose;
+
+                if (VoxelMap.MarkedForClose)
+                {
+                    IsInhibited = true;
+                }
             }
             catch (Exception ex)
             {
@@ -54,6 +69,7 @@ namespace SERingAsteroids
 
         public void ExecuteDelete()
         {
+            VoxelMap.OnMarkForClose -= OnClose;
             DeleteAction(VoxelMap);
         }
     }
