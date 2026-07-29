@@ -387,6 +387,19 @@ namespace SERingAsteroids
         public string AsteroidNamePlanetPrefix { get; set; }
 
         /// <summary>
+        /// Use builtin CreateProceduralVoxelMap function to create asteroids
+        /// </summary>
+        /// <remarks>
+        /// Note that the following cannot be controlled when using this function:
+        /// <list type="bullet">
+        ///   <item>Name (will always be <c>ProcAsteroid-<see cref="ProceduralVoxelDetails.Seed">seed</see>r<see cref="ProceduralVoxelDetails.Size">size</see>-{num}</c>)</item>
+        ///   <item><see cref="VoxelGeneratorVersion">VoxelGeneratorVersion</see></item>
+        /// </list>
+        /// </remarks>
+        [ProtoMember(42)]
+        public bool? UseCreateProceduralVoxelMap { get; set; }
+
+        /// <summary>
         /// Ring Centre Position
         /// </summary>
         /// <remarks>
