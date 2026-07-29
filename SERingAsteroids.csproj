@@ -6,73 +6,113 @@
 		<PlatformTarget>x64</PlatformTarget>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$([System.OperatingSystem]::IsLinux())' == true">
+		<SteamLibraryPath Condition="'$(SteamLibraryPath)' == '' and Exists('$(HOME)/Steam/steamapps/common/SpaceEngineers')">$(HOME)/Steam</SteamLibraryPath>
+		<SteamLibraryPath Condition="'$(SteamLibraryPath)' == '' and Exists('$(HOME)/.steam/steam/steamapps/common/SpaceEngineers')">$(HOME)/.steam/steam</SteamLibraryPath>
+		<SpaceEngineersAppDataPath Condition="'$(SpaceEngineersAppDataPath)' == '' and Exists('$(SteamLibraryPath)/steamapps/compatdata')">$(SteamLibraryPath)/steamapps/compatdata/244840/drive_c/Users/steamuser/AppData/Roaming</SpaceEngineersAppDataPath>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$([System.OperatingSystem]::IsWindows())' == true">
+		<SteamLibraryPath Condition="'$(SteamLibraryPath)' == ''">$(MSBuildProgramFiles32)/Steam</SteamLibraryPath>
+		<SpaceEngineersAppDataPath Condition="'$(SpaceEngineersAppDataPath)' == ''">$(APPDATA)</SpaceEngineersAppDataPath>
+	</PropertyGroup>
+
 	<PropertyGroup>
-		<SpaceEngineersBin64Path Condition="'$(SpaceEngineersBin64Path)' == ''">C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64</SpaceEngineersBin64Path>
+		<SpaceEngineersBin64Path Condition="'$(SpaceEngineersBin64Path)' == '' and Exists('$(SteamLibraryPath)/steamapps/common/SpaceEngineers')">$(SteamLibraryPath)/steamapps/common/SpaceEngineers/Bin64</SpaceEngineersBin64Path>
+		<SpaceEngineersBin64Path Condition="'$(SpaceEngineersBin64Path)' == ''">$(HOME)/SpaceEngineers/Bin64</SpaceEngineersBin64Path>
+		<SpaceEngineersModsPath Condition="'$(SpaceEngineersModsPath)' == '' and Exists('$(SpaceEngineersAppDataPath)/SpaceEngineers')">$(SpaceEngineersAppDataPath)/SpaceEngineers/Mods</SpaceEngineersModsPath>
+		<SpaceEngineersModsPath Condition="'$(SpaceEngineersModsPath)' == ''">$(HOME)/SpaceEngineersMods</SpaceEngineersModsPath>
+		<SERingAsteroidsModPath Condition="'$(SERingAsteroidsModPath)' == ''">$(SpaceEngineersModsPath)/SERingAsteroids</SERingAsteroidsModPath>
+		<SERingAsteroidsScriptsComponentName Condition="'$(SERingAsteroidsScriptsComponentName)' == ''">BylenRingAsteroids</SERingAsteroidsScriptsComponentName>
+		<ScriptOutputDir>$(SpaceEngineersModsPath)/Data/Scripts/$(SERingAsteroidsScriptsComponentName)</ScriptOutputDir>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="ProtoBuf.Net">
-			<HintPath>$(SpaceEngineersBin64Path)\ProtoBuf.Net.dll</HintPath>
-		</Reference>
-		<Reference Include="Sandbox.Common">
-			<HintPath>$(SpaceEngineersBin64Path)\Sandbox.Common.dll</HintPath>
-		</Reference>
-		<Reference Include="Sandbox.Game">
-			<HintPath>$(SpaceEngineersBin64Path)\Sandbox.Game.dll</HintPath>
-		</Reference>
-		<Reference Include="Sandbox.Game.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)\Sandbox.Game.XmlSerializers.dll</HintPath>
-		</Reference>
-		<Reference Include="Sandbox.Graphics">
-			<HintPath>$(SpaceEngineersBin64Path)\Sandbox.Graphics.dll</HintPath>
-		</Reference>
-		<Reference Include="Sandbox.RenderDirect">
-			<HintPath>$(SpaceEngineersBin64Path)\Sandbox.RenderDirect.dll</HintPath>
-		</Reference>
-		<Reference Include="SpaceEngineers.Game">
-			<HintPath>$(SpaceEngineersBin64Path)\SpaceEngineers.Game.dll</HintPath>
-		</Reference>
-		<Reference Include="SpaceEngineers.ObjectBuilders">
-			<HintPath>$(SpaceEngineersBin64Path)\SpaceEngineers.ObjectBuilders.dll</HintPath>
-		</Reference>
-		<Reference Include="SpaceEngineers.ObjectBuilders.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)\SpaceEngineers.ObjectBuilders.XmlSerializers.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Game">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Game.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Game.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Game.XmlSerializers.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Library">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Library.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Math">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Math.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Math.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Math.XmlSerializers.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Render">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Render.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Scripting">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.Scripting.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)\VRage.XmlSerializers.dll</HintPath>
-		</Reference>
+	  <None Remove="LICENSE" />
+	  <None Remove="README.md" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Properties\" />
+	  <Content Include="LICENSE" />
+	  <Content Include="README.md" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="ProtoBuf.Net">
+			<HintPath>$(SpaceEngineersBin64Path)/ProtoBuf.Net.dll</HintPath>
+		</Reference>
+		<Reference Include="Sandbox.Common">
+			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Common.dll</HintPath>
+		</Reference>
+		<Reference Include="Sandbox.Game">
+			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Game.dll</HintPath>
+		</Reference>
+		<Reference Include="Sandbox.Game.XmlSerializers">
+			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Game.XmlSerializers.dll</HintPath>
+		</Reference>
+		<Reference Include="Sandbox.Graphics">
+			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Graphics.dll</HintPath>
+		</Reference>
+		<Reference Include="Sandbox.RenderDirect">
+			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.RenderDirect.dll</HintPath>
+		</Reference>
+		<Reference Include="SpaceEngineers.Game">
+			<HintPath>$(SpaceEngineersBin64Path)/SpaceEngineers.Game.dll</HintPath>
+		</Reference>
+		<Reference Include="SpaceEngineers.ObjectBuilders">
+			<HintPath>$(SpaceEngineersBin64Path)/SpaceEngineers.ObjectBuilders.dll</HintPath>
+		</Reference>
+		<Reference Include="SpaceEngineers.ObjectBuilders.XmlSerializers">
+			<HintPath>$(SpaceEngineersBin64Path)/SpaceEngineers.ObjectBuilders.XmlSerializers.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Game">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Game.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Game.XmlSerializers">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Game.XmlSerializers.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Library">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Library.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Math">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Math.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Math.XmlSerializers">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Math.XmlSerializers.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Render">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Render.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.Scripting">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Scripting.dll</HintPath>
+		</Reference>
+		<Reference Include="VRage.XmlSerializers">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.XmlSerializers.dll</HintPath>
+		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
 	  <PackageReference Include="protobuf-net" Version="3.1.33" />
 	</ItemGroup>
+
+	<Target Name="DeployModFiles">
+		<ItemGroup>
+			<_SourceFiles Include="@(Compile)" />
+			<_SourceFiles Include="@(Content)" />
+			<_SourceFiles Remove="@(_SourceFiles)" Condition="'%(AutoGen) == true" />
+			<_SourceFiles Remove="**/*.Designer.cs" />
+			<_SourceFiles Remove="**/*.g.cs" />
+			<_SourceFiles Remove="**/*.g.i.cs" />
+			<_SourceFiles Remove="**/*.AssemblyAttributes.cs" />
+			<_SourceFiles Remove="obj/**/*" />
+		</ItemGroup>
+
+		<MakeDir Directories="$(ScriptOutputDir)" />
+
+		<Copy SourceFiles="@(_SourceFiles)" DestinationFolder="$(ScriptOutputDir)/%(RecursiveDir)" SkipUnchangedFiles="true" />
+	</Target>
 
 </Project>
