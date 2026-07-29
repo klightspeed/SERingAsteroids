@@ -22,7 +22,14 @@ namespace SERingAsteroids
                 // CreateProceduralVoxelMap added an optional depositSeed parameter in 1.209 (Economy 2)
                 // We can't control the name using this function.
                 // It'll always be ProcAsteroid-{seed}r{size}[-{num}]
-                voxelmap = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(details.Seed, details.Size, MatrixD.CreateTranslation(details.Position), details.GeneratorSeed);
+                voxelmap = MyAPIGateway.Session.VoxelMaps.CreateProceduralVoxelMap(
+                    details.Seed,
+                    details.Size,
+                    MatrixD.CreateTranslation(details.Position)
+#if !(VERSION_208 || VERSION_207 || VERSION_206 || VERSION_205 || VERSION_204 || VERSION_203 || VERSION_202 || VERSION_201 || VERSION_200 || VERSION_199 || VERSION_198 || VERSION_197 || VERSION_196 || VERSION_195 || VERSION_194)
+                    , details.GeneratorSeed
+#endif
+                );
             }
             else
             {
