@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net461</TargetFramework>
+		<TargetFrameworks>netstandard20</TargetFrameworks>
 		<LangVersion>6</LangVersion>
 		<PlatformTarget>x64</PlatformTarget>
 	</PropertyGroup>
@@ -28,18 +28,18 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="LICENSE" />
-	  <None Remove="README.md" />
+		<None Remove="LICENSE" />
+		<None Remove="README.md" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Content Include="LICENSE" />
-	  <Content Include="README.md" />
+		<Content Include="LICENSE" />
+		<Content Include="README.md" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="ProtoBuf.Net">
-			<HintPath>$(SpaceEngineersBin64Path)/ProtoBuf.Net.dll</HintPath>
+		<Reference Include="ProtoBuf.Net.Core">
+			<HintPath>$(SpaceEngineersBin64Path)/ProtoBuf.Net.Core.dll</HintPath>
 		</Reference>
 		<Reference Include="Sandbox.Common">
 			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Common.dll</HintPath>
@@ -47,14 +47,8 @@
 		<Reference Include="Sandbox.Game">
 			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Game.dll</HintPath>
 		</Reference>
-		<Reference Include="Sandbox.Game.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Game.XmlSerializers.dll</HintPath>
-		</Reference>
 		<Reference Include="Sandbox.Graphics">
 			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.Graphics.dll</HintPath>
-		</Reference>
-		<Reference Include="Sandbox.RenderDirect">
-			<HintPath>$(SpaceEngineersBin64Path)/Sandbox.RenderDirect.dll</HintPath>
 		</Reference>
 		<Reference Include="SpaceEngineers.Game">
 			<HintPath>$(SpaceEngineersBin64Path)/SpaceEngineers.Game.dll</HintPath>
@@ -62,17 +56,11 @@
 		<Reference Include="SpaceEngineers.ObjectBuilders">
 			<HintPath>$(SpaceEngineersBin64Path)/SpaceEngineers.ObjectBuilders.dll</HintPath>
 		</Reference>
-		<Reference Include="SpaceEngineers.ObjectBuilders.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)/SpaceEngineers.ObjectBuilders.XmlSerializers.dll</HintPath>
-		</Reference>
 		<Reference Include="VRage">
 			<HintPath>$(SpaceEngineersBin64Path)/VRage.dll</HintPath>
 		</Reference>
 		<Reference Include="VRage.Game">
 			<HintPath>$(SpaceEngineersBin64Path)/VRage.Game.dll</HintPath>
-		</Reference>
-		<Reference Include="VRage.Game.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)/VRage.Game.XmlSerializers.dll</HintPath>
 		</Reference>
 		<Reference Include="VRage.Library">
 			<HintPath>$(SpaceEngineersBin64Path)/VRage.Library.dll</HintPath>
@@ -80,22 +68,12 @@
 		<Reference Include="VRage.Math">
 			<HintPath>$(SpaceEngineersBin64Path)/VRage.Math.dll</HintPath>
 		</Reference>
-		<Reference Include="VRage.Math.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)/VRage.Math.XmlSerializers.dll</HintPath>
-		</Reference>
 		<Reference Include="VRage.Render">
 			<HintPath>$(SpaceEngineersBin64Path)/VRage.Render.dll</HintPath>
 		</Reference>
-		<Reference Include="VRage.Scripting">
-			<HintPath>$(SpaceEngineersBin64Path)/VRage.Scripting.dll</HintPath>
+		<Reference Include="VRage.Input">
+			<HintPath>$(SpaceEngineersBin64Path)/VRage.Input.dll</HintPath>
 		</Reference>
-		<Reference Include="VRage.XmlSerializers">
-			<HintPath>$(SpaceEngineersBin64Path)/VRage.XmlSerializers.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
-	  <PackageReference Include="protobuf-net" Version="3.1.33" />
 	</ItemGroup>
 
 	<Target Name="DeployModFiles">
