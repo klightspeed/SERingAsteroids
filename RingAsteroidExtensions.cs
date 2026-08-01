@@ -4,6 +4,7 @@ using Sandbox.ModAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VRage.Game;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.ModAPI;
@@ -82,5 +83,111 @@ namespace SERingAsteroids
             voxelmap.Close();
         }
 
+        public static string[] GuessPossibleAsteroidOres(int version, int seed, int generatorSeed, out bool isIceAsteroid)
+        {
+            isIceAsteroid = false;
+
+            var allMaterials = MyDefinitionManager.Static.GetVoxelMaterialDefinitions();
+
+            var depositMaterials = new List<MyVoxelMaterialDefinition>();
+
+            FillMaterials(allMaterials, depositMaterials, version);
+
+            if (depositMaterials.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            if (version >= 3)
+            {
+                // MyRandom is just Random with a PushSeed
+                var random = new Random(generatorSeed);
+
+                // coreMaterials is always empty for version 3+
+                FilterKindDuplicates(random, depositMaterials);
+
+                // surfaceMaterials always has the one material: Stone
+                random.Next();
+
+                ProcessSpawnProbabilities(depositMaterials);
+
+                if (random.Next(100) < 1)
+                {
+                    isIceAsteroid = true;
+                    return Array.Empty<string>();
+                }
+                else if (version >= 4)
+                {
+                    int maxCount1 = random.NextDouble() > 0.8f ? 4 : 2;
+                    int maxCount2 = random.NextDouble() > 0.4f ? 2 : 1;
+                    LimitMaterials(random, depositMaterials, maxCount1);
+
+                    random = new Random(seed);
+
+                    LimitMaterials(random, depositMaterials, maxCount2);
+                }
+            }
+
+            return depositMaterials.Select(e => e.MinedOre).Distinct().ToArray();
+        }
+
+        private static void FillMaterials(
+                IEnumerable<MyVoxelMaterialDefinition> allMaterials,
+                List<MyVoxelMaterialDefinition> depositMaterials,
+                int version
+            )
+        {
+            foreach (var material in allMaterials)
+            {
+                if (material.SpawnsInAsteroids
+                    && material.MinVersion <= version
+                    && material.MaxVersion >= version
+                    && material.MinedOre != "Stone")
+                {
+                    depositMaterials.Add(material);
+                }
+            }
+        }
+
+        private static void FilterKindDuplicates(Random random, List<MyVoxelMaterialDefinition> materials)
+        {
+            materials.Sort((x, y) => string.Compare(x.MinedOre, y.MinedOre, StringComparison.OrdinalIgnoreCase));
+
+            int pos = 0;
+
+            for (int i = 1; i <= materials.Count; i++)
+            {
+                if (i == materials.Count || materials[i].MinedOre != materials[i - 1].MinedOre)
+                {
+                    materials[pos++] = materials[random.Next(pos, i)];
+                }
+            }
+
+            materials.RemoveRange(pos, materials.Count - pos);
+        }
+
+        private static void ProcessSpawnProbabilities(List<MyVoxelMaterialDefinition> materials)
+        {
+            int count = materials.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                var material = materials[i];
+                int addCount = material.AsteroidGeneratorSpawnProbabilityMultiplier - 1;
+
+                for (int j = 0; j < addCount; j++)
+                {
+                    materials.Add(material);
+                }
+            }
+        }
+
+        private static void LimitMaterials(Random random, List<MyVoxelMaterialDefinition> materials, int maxCount)
+        {
+            while (materials.Count > maxCount)
+            {
+                materials.RemoveAt(random.Next(materials.Count));
+            }
+        }
     }
 }
